@@ -13,7 +13,7 @@ pub fn clone_repo(clone_url: &str, destination: &str,) {
         cmd.args(["clone", clone_url]);
         cmd.arg(destination);
 
-        println!("Cloning repository from {}", clone_url);
+        println!("Cloning a repository from {}", clone_url);
 
         // Execute the clone command
         let output = cmd.output().expect("Failed to execute git clone");

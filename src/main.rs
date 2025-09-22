@@ -1,37 +1,9 @@
 mod gitops;
+mod cli;
 
-use std::path::PathBuf;
 use clap::Parser;
 use gitops::clone_repo;
-
-#[derive(Parser)]
-#[command(name = "MyApp")]
-#[command(version = "0.1.0", author = "João Paulo (JP) Figueira")]
-#[command(about = "Builds the eVED database from the original data sources")]
-#[command(about, version, author)]
-struct Cli {
-    #[arg(long, help = "Clones the eVED repository from GitHub")]
-    eved: bool,
-
-    #[arg(long, help = "Clones the VED repository from GitHub")]
-    ved: bool,
-
-    #[arg(short, long, help = "Enables verbose mode")]
-    verbose: bool,
-
-    #[arg(short, long, help = "Builds the signal table from the original data sources")]
-    signals: bool,
-
-    #[arg(short, long, help = "Builds the nodes table from the original data sources")]
-    nodes: bool,
-
-    /// Sets a custom config file
-    #[arg(short, long, value_name = "FILE")]
-    config: Option<PathBuf>,
-
-    #[arg(long, value_name = "./data", help = "Sets the data path")]
-    data_path: Option<String>,
-}
+use cli::Cli;
 
 #[tokio::main]
 async fn main() {
@@ -56,5 +28,4 @@ async fn main() {
     if (cli.verbose) {
         println!("Data path: {}", cli.data_path.unwrap_or_else(|| "./data".to_string()));
     }
-
 }
