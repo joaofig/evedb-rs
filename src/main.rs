@@ -10,11 +10,14 @@ use gitops::clone_repo;
 #[command(about = "Builds the eVED database from the original data sources")]
 #[command(about, version, author)]
 struct Cli {
-    #[arg(short, long, help = "Checks if the eVED repository is up to date")]
+    #[arg(long, help = "Clones the eVED repository from GitHub")]
     eved: bool,
 
-    #[arg(short, long, help = "Clones the VED repository from GitHub")]
+    #[arg(long, help = "Clones the VED repository from GitHub")]
     ved: bool,
+
+    #[arg(short, long, help = "Enables verbose mode")]
+    verbose: bool,
 
     #[arg(short, long, help = "Builds the signal table from the original data sources")]
     signals: bool,
@@ -24,7 +27,10 @@ struct Cli {
 
     /// Sets a custom config file
     #[arg(short, long, value_name = "FILE")]
-    config: Option<PathBuf>
+    config: Option<PathBuf>,
+
+    #[arg(long, value_name = "./data", help = "Sets the data path")]
+    data_path: Option<String>,
 }
 
 #[tokio::main]
@@ -40,10 +46,15 @@ async fn main() {
         clone_repo("https://bitbucket.org/datarepo/eved_dataset.git",
         "eved");
     }
-    
+
     // Clone the VED repository
     if cli.ved {
         clone_repo("https://github.com/gsoh/VED.git",
         "ved");
     }
+
+    if (cli.verbose) {
+        println!("Data path: {}", cli.data_path.unwrap_or_else(|| "./data".to_string()));
+    }
+
 }

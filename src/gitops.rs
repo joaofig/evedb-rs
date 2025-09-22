@@ -1,15 +1,9 @@
 
 use std::process::Command;
+use std::fs;
 
 fn rm_destination(destination: &str) -> bool {
-    // Remove the destination folder if it exists
-    let mut rm_cmd = Command::new("rm");
-    rm_cmd.args(["-rf", destination]);
-
-    // Execute the clone command
-    let output = rm_cmd.output().expect("Failed to remove destination folder");
-
-    output.status.success()
+    fs::remove_dir_all(destination).is_ok()
 }
 
 pub fn clone_repo(clone_url: &str, destination: &str,) {
