@@ -7,22 +7,22 @@ fn rm_destination(destination: &str) -> bool {
 }
 
 pub fn clone_repo(clone_url: &str, destination: &str,) {
-    if rm_destination(destination) {
-        // Prepare git clone command
-        let mut cmd = Command::new("git");
-        cmd.args(["clone", clone_url]);
-        cmd.arg(destination);
+    rm_destination(destination);
 
-        println!("Cloning a repository from {}", clone_url);
+    // Prepare git clone command
+    let mut cmd = Command::new("git");
+    cmd.args(["clone", clone_url]);
+    cmd.arg(destination);
 
-        // Execute the clone command
-        let output = cmd.output().expect("Failed to execute git clone");
+    println!("Cloning a repository from {}", clone_url);
 
-        if output.status.success() {
-            println!("Repository cloned successfully to {}", destination);
-        } else {
-            eprintln!("Error cloning repository:");
-            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-        }
+    // Execute the clone command
+    let output = cmd.output().expect("Failed to execute git clone");
+
+    if output.status.success() {
+        println!("Repository cloned successfully to {}", destination);
+    } else {
+        eprintln!("Error cloning repository:");
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
     }
 }

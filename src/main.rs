@@ -16,16 +16,16 @@ async fn main() {
     // Clone the eVED repository
     if cli.eved {
         clone_repo("https://bitbucket.org/datarepo/eved_dataset.git",
-        "eved");
+        "./data/eved");
     }
 
     // Clone the VED repository
     if cli.ved {
         clone_repo("https://github.com/gsoh/VED.git",
-        "ved");
+        "./data/ved");
     }
 
-    if (cli.verbose) {
+    if cli.verbose {
         println!("Data path: {}", cli.data_path.unwrap_or_else(|| "./data".to_string()));
     }
 }
