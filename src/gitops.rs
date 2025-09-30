@@ -6,7 +6,7 @@ fn rm_destination(destination: &str) -> bool {
     fs::remove_dir_all(destination).is_ok()
 }
 
-pub fn clone_repo(clone_url: &str, destination: &str,) {
+pub fn clone_repo(clone_url: &str, destination: &str, verbose: bool, ) {
     rm_destination(destination);
 
     // Prepare git clone command
@@ -14,13 +14,17 @@ pub fn clone_repo(clone_url: &str, destination: &str,) {
     cmd.args(["clone", clone_url]);
     cmd.arg(destination);
 
-    println!("Cloning a repository from {}", clone_url);
+    if verbose {
+        println!("Cloning a repository from {}", clone_url);
+    }
 
     // Execute the clone command
     let output = cmd.output().expect("Failed to execute git clone");
 
     if output.status.success() {
-        println!("Repository cloned successfully to {}", destination);
+        if verbose {
+            println!("Repository cloned successfully to {}", destination);
+        }
     } else {
         eprintln!("Error cloning repository:");
         eprintln!("{}", String::from_utf8_lossy(&output.stderr));

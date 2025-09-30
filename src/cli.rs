@@ -22,6 +22,9 @@ pub struct Cli {
     #[arg(short, long, help = "Builds the nodes table from the original data sources")]
     pub nodes: bool,
 
+    #[arg(long, help = "Cleans up the data folder after importing the data")]
+    pub clean: bool,
+
     /// Sets a custom config file
     #[arg(short, long, value_name = "FILE")]
     pub config: Option<PathBuf>,

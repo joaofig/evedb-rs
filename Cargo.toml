@@ -8,3 +8,4 @@ clap = { version = "4.5.47", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"] }
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio", "tls-native-tls"] }
 polars = { version = "0.26.1", features = ["lazy", "temporal", "describe", "json", "parquet", "dtype-datetime"] }
+calamine = { version = "0.31.0", features = ["chrono"] }
