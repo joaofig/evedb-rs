@@ -1,5 +1,5 @@
-use std::path::PathBuf;
-use clap::Parser;
+// use std::path::PathBuf;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "MyApp")]
@@ -7,28 +7,25 @@ use clap::Parser;
 #[command(about = "Builds the eVED database from the original data sources")]
 #[command(about, version, author)]
 pub struct Cli {
-    #[arg(long, help = "Clones the eVED repository from GitHub")]
-    pub eved: bool,
+    #[arg(long, default_value_t = String::from("./data"), help = "Sets the data path")]
+    pub data_path: String,
 
-    #[arg(long, help = "Clones the VED repository from GitHub")]
-    pub ved: bool,
-
-    #[arg(short, long, help = "Enables verbose mode")]
+    #[arg(long, help = "Verbose mode on")]
     pub verbose: bool,
 
-    #[arg(short, long, help = "Builds the signal table from the original data sources")]
-    pub signals: bool,
+    #[command(subcommand)]
+    pub command: Commands
+}
 
-    #[arg(short, long, help = "Builds the nodes table from the original data sources")]
-    pub nodes: bool,
 
-    #[arg(long, help = "Cleans up the data folder after importing the data")]
-    pub clean: bool,
+#[derive(Subcommand)]
+pub enum Commands {
+    /// builds the database
+    Build,
 
-    /// Sets a custom config file
-    #[arg(short, long, value_name = "FILE")]
-    pub config: Option<PathBuf>,
+    /// cleans the data folder
+    Clean,
 
-    #[arg(long, value_name = "./data", help = "Sets the data path")]
-    pub data_path: Option<String>,
+    /// clones the source data
+    Clone,
 }
