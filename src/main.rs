@@ -1,10 +1,12 @@
 mod gitops;
 mod cli;
+mod commands;
 
 use clap::Parser;
 // use gitops::clone_repo;
 use cli::Cli;
 use crate::cli::Commands;
+use crate::commands::clean::clean_data;
 
 
 #[tokio::main]
@@ -16,7 +18,7 @@ async fn main() {
             println!("Building database...");
         }
         Commands::Clean => {
-            println!("Cleaning data folder...");
+            clean_data(cli);
         }
         Commands::Clone => {
             println!("Cloning source data...");
