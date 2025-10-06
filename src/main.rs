@@ -5,6 +5,7 @@ use clap::Parser;
 // use gitops::clone_repo;
 use cli::Cli;
 use crate::cli::Commands;
+use crate::commands::build::build_database;
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
 
@@ -14,7 +15,7 @@ async fn main() {
 
     match cli.command {
         Commands::Build => {
-            println!("Building database...");
+            build_database(&cli);
         }
         Commands::Clean => {
             clean_data(&cli);
