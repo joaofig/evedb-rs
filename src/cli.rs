@@ -1,5 +1,5 @@
 // use std::path::PathBuf;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, Args};
 
 #[derive(Parser)]
 #[command(name = "MyApp")]
@@ -28,7 +28,7 @@ pub struct Cli {
 pub enum Commands {
     /// builds the database
     #[command(about = "Builds the database")]
-    Build,
+    Build(BuildCommandArgs),
 
     /// cleans the repositories folder
     #[command(about = "Cleans the repositories folder")]
@@ -37,4 +37,14 @@ pub enum Commands {
     /// clones the source repositories
     #[command(about = "Clones the source repositories")]
     Clone,
+}
+
+
+#[derive(Args)]
+pub struct BuildCommandArgs {
+    #[arg(long, help = "Do not clone the repositories")]
+    pub no_clone: bool,
+
+    #[arg(long, help = "Do not clean the repositories folder after building")]
+    pub no_clean: bool,
 }

@@ -2,7 +2,6 @@ mod cli;
 mod commands;
 
 use clap::Parser;
-// use gitops::clone_repo;
 use cli::Cli;
 use crate::cli::Commands;
 use crate::commands::build::build_database;
@@ -13,9 +12,9 @@ use crate::commands::clone::clone_data;
 async fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Build => {
-            build_database(&cli);
+    match &cli.command {
+        Commands::Build(args) => {
+            build_database(&cli, args);
         }
         Commands::Clean => {
             clean_data(&cli);
