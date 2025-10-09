@@ -1,3 +1,4 @@
+use std::fs;
 use std::process::Command;
 use std::path::Path;
 use crate::cli::Cli;
@@ -36,6 +37,12 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str,) -> bool {
 pub fn clone_data(cli: &Cli) -> bool {
     let eved_destination: String = cli.repo_path.clone() + "/eved";
     let ved_destination: String = cli.repo_path.clone() + "/ved";
+
+    if fs::remove_dir_all(cli.repo_path.clone()).is_ok() {
+        if cli.verbose {
+            println!("Removed existing repository at {}", cli.repo_path);
+        }
+    }
 
     if clone_repo(cli, "https://bitbucket.org/datarepo/eved_dataset.git",
                &eved_destination) {

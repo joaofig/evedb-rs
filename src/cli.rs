@@ -7,14 +7,8 @@ use clap::{Parser, Subcommand, Args};
 #[command(about = "Builds the eVED database from the original data sources")]
 #[command(about, version, author)]
 pub struct Cli {
-    #[arg(long, default_value_t = String::from("~/data/eved/repo"), help = "Sets the repositories path")]
+    #[arg(long, default_value_t = String::from("./data/eved/repo"), help = "Sets the repositories path")]
     pub repo_path: String,
-
-    #[arg(long, help = "Do not clean the repositories folder prior to cloning")]
-    pub no_clean: bool,
-
-    #[arg(long, help = "Do not clone the repositories")]
-    pub no_clone: bool,
 
     #[arg(long, help = "Verbose mode on")]
     pub verbose: bool,
