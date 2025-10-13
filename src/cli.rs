@@ -1,4 +1,3 @@
-// use std::path::PathBuf;
 use clap::{Parser, Subcommand, Args};
 
 #[derive(Parser)]
@@ -9,6 +8,9 @@ use clap::{Parser, Subcommand, Args};
 pub struct Cli {
     #[arg(long, default_value_t = String::from("./data/eved/repo"), help = "Sets the repositories path")]
     pub repo_path: String,
+
+    #[arg(long, default_value_t = String::from("./data/eved/db/evedb.db"), help = "Sets the database path")]
+    pub db_path: String,
 
     #[arg(long, help = "Verbose mode on")]
     pub verbose: bool,
