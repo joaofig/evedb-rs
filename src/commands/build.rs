@@ -56,10 +56,11 @@ fn read_vehicles(cli: &Cli) -> Vec<Vehicle> {
     vehicles
 }
 
-fn build_vehicles(cli: &Cli) {
+fn build_vehicles(cli: &Cli) -> bool {
     let vehicles = read_vehicles(cli);
     let db: EveDb = EveDb::new(&cli.db_path);
-    db.create_tables();
+    db.create_vehicle_table();
+    db.insert_vehicles(vehicles)
 }
 
 pub fn build_database(cli: &Cli, args: &BuildCommandArgs) {

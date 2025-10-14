@@ -1,4 +1,5 @@
 use crate::db::api::SqliteDb;
+use crate::models::vehicle::Vehicle;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -14,7 +15,7 @@ impl EveDb {
         self.db.connect()
     }
 
-    fn create_vehicle_table(&self) {
+    pub fn create_vehicle_table(&self) {
         let sql = "
         CREATE TABLE IF NOT EXISTS main.vehicle (
             vehicle_id    INTEGER primary key,
@@ -34,6 +35,40 @@ impl EveDb {
                 println!("Error creating table: {}", e);
             }
         }
+    }
+
+    pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> bool {
+        let sql = "
+        INSERT INTO main.vehicle (
+            vehicle_id,
+            vehicle_type,
+            vehicle_class,
+            engine,
+            transmission,
+            drive_wheels,
+            weight) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
+
+        match self.connect() {
+            Ok(mut conn) => {
+                match conn.transaction() {
+                    Ok(transaction) => {
+                        for vehicle in vehicles {
+                            transaction.execute(sql, vehicle.to_tuple()).unwrap();
+                        }
+                        transaction.commit().unwrap_or(())
+                    }
+                    Err(e) => {
+                        println!("Error starting transaction: {}", e);
+                        return false;
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Error inserting vehicle data: {}", e);
+                return false;
+            }
+        }
+        true
     }
 
     pub fn create_tables(&self) {
