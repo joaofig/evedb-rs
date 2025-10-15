@@ -1,5 +1,7 @@
 use crate::db::api::SqliteDb;
 use crate::models::vehicle::Vehicle;
+use rusqlite::Connection;
+use rusqlite::Result;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -11,11 +13,11 @@ impl EveDb {
         EveDb { db: database }
     }
 
-    fn connect(&self) -> rusqlite::Result<rusqlite::Connection> {
+    fn connect(&self) -> Result<Connection> {
         self.db.connect()
     }
 
-    pub fn create_vehicle_table(&self) {
+    pub fn create_vehicle_table(&self) -> Result<usize> {
         let sql = "
         CREATE TABLE IF NOT EXISTS main.vehicle (
             vehicle_id    INTEGER primary key,
@@ -27,17 +29,11 @@ impl EveDb {
             weight        INTEGER
         ) STRICT";
 
-        match self.connect() {
-            Ok(conn) => {
-                conn.execute(sql, []).unwrap();
-            }
-            Err(e) => {
-                println!("Error creating table: {}", e);
-            }
-        }
+        let conn = self.connect()?;
+        conn.execute(sql, [])
     }
 
-    pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> bool {
+    pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<()> {
         let sql = "
         INSERT INTO main.vehicle (
             vehicle_id,
@@ -48,30 +44,16 @@ impl EveDb {
             drive_wheels,
             weight) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
 
-        match self.connect() {
-            Ok(mut conn) => {
-                match conn.transaction() {
-                    Ok(transaction) => {
-                        for vehicle in vehicles {
-                            transaction.execute(sql, vehicle.to_tuple()).unwrap();
-                        }
-                        transaction.commit().unwrap_or(())
-                    }
-                    Err(e) => {
-                        println!("Error starting transaction: {}", e);
-                        return false;
-                    }
-                }
-            }
-            Err(e) => {
-                println!("Error inserting vehicle data: {}", e);
-                return false;
-            }
+        let mut conn = self.connect()?;
+        let transaction = conn.transaction()?;
+
+        for vehicle in vehicles {
+            transaction.execute(sql, vehicle.to_tuple())?;
         }
-        true
+        transaction.commit()
     }
 
     pub fn create_tables(&self) {
-        self.create_vehicle_table();
+        self.create_vehicle_table().unwrap_or(0);
     }
 }

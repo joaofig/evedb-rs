@@ -1,4 +1,5 @@
 use calamine::{Reader, open_workbook, Xlsx, Data, DataType};
+use anyhow::Result;
 use crate::cli::{BuildCommandArgs, Cli};
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
@@ -56,11 +57,11 @@ fn read_vehicles(cli: &Cli) -> Vec<Vehicle> {
     vehicles
 }
 
-fn build_vehicles(cli: &Cli) -> bool {
+fn build_vehicles(cli: &Cli) {
     let vehicles = read_vehicles(cli);
     let db: EveDb = EveDb::new(&cli.db_path);
-    db.create_vehicle_table();
-    db.insert_vehicles(vehicles)
+    db.create_vehicle_table().unwrap_or(0);
+    db.insert_vehicles(vehicles).unwrap_or(());
 }
 
 pub fn build_database(cli: &Cli, args: &BuildCommandArgs) {
