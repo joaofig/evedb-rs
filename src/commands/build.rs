@@ -1,5 +1,4 @@
-use calamine::{Reader, open_workbook, Xlsx, Data, DataType};
-use anyhow::Result;
+use calamine::{Reader, open_workbook, Xlsx, DataType};
 use crate::cli::{BuildCommandArgs, Cli};
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
@@ -64,12 +63,17 @@ fn build_vehicles(cli: &Cli) {
     db.insert_vehicles(vehicles).unwrap_or(());
 }
 
+fn build_signals(cli: &Cli) {
+
+}
+
 pub fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     if !args.no_clone {
         clone_data(cli);
     }
 
     build_vehicles(cli);
+    build_signals(cli);
 
     if !args.no_clean {
         clean_data(cli);
