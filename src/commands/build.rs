@@ -59,7 +59,11 @@ fn build_vehicles(cli: &Cli) {
     db.insert_vehicles(vehicles).unwrap_or(());
 }
 
-fn build_signals(_: &Cli) {}
+fn build_signals(cli: &Cli) {
+    let db: EveDb = EveDb::new(&cli.db_path);
+    
+    db.create_signal_table().unwrap_or(0);
+}
 
 pub fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     if !args.no_clone {

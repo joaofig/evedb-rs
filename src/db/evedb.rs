@@ -36,7 +36,7 @@ impl EveDb {
 
     pub fn create_signal_table(&self) -> Result<usize> {
         let sql = text_block! {
-        "create table main.signal ("
+        "create table if not exists main.signal ("
         "   signal_id          INTEGER primary key,"
         "   day_num            DOUBLE  not null,"
         "   vehicle_id         INTEGER not null,"
