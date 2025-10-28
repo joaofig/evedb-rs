@@ -1,20 +1,16 @@
-use calamine::{Reader, open_workbook, Xlsx, DataType};
 use crate::cli::{BuildCommandArgs, Cli};
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
 use crate::db::evedb::EveDb;
 use crate::models::vehicle::Vehicle;
+use calamine::{DataType, Reader, Xlsx, open_workbook};
 
 fn no_data_str(data: &Option<String>) -> Option<String> {
     match data {
         Some(data) => {
             let text = data.to_string();
-            if text == "NO DATA" {
-                None
-            } else {
-                Some(text)
-            }
-        },
+            if text == "NO DATA" { None } else { Some(text) }
+        }
         None => None,
     }
 }
@@ -63,9 +59,7 @@ fn build_vehicles(cli: &Cli) {
     db.insert_vehicles(vehicles).unwrap_or(());
 }
 
-fn build_signals(cli: &Cli) {
-
-}
+fn build_signals(_: &Cli) {}
 
 pub fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     if !args.no_clone {

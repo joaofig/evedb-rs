@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "MyApp")]
@@ -16,9 +16,8 @@ pub struct Cli {
     pub verbose: bool,
 
     #[command(subcommand)]
-    pub command: Commands
+    pub command: Commands,
 }
-
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -34,7 +33,6 @@ pub enum Commands {
     #[command(about = "Clones the source repositories")]
     Clone,
 }
-
 
 #[derive(Args)]
 pub struct BuildCommandArgs {

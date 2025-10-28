@@ -1,5 +1,5 @@
-use std::fs;
 use crate::cli::Cli;
+use std::fs;
 
 pub fn clean_data(cli: &Cli) -> bool {
     if cli.verbose {

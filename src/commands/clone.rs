@@ -1,9 +1,9 @@
-use std::fs;
-use std::process::Command;
-use std::path::Path;
 use crate::cli::Cli;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
 
-fn clone_repo(cli: &Cli, clone_url: &str, destination: &str,) -> bool {
+fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
     if Path::new(destination).exists() {
         if cli.verbose {
             println!("Repository already exists at {}", destination);
@@ -44,10 +44,12 @@ pub fn clone_data(cli: &Cli) -> bool {
         }
     }
 
-    if clone_repo(cli, "https://bitbucket.org/datarepo/eved_dataset.git",
-               &eved_destination) {
-        clone_repo(cli, "https://github.com/gsoh/VED.git",
-                   &ved_destination)
+    if clone_repo(
+        cli,
+        "https://bitbucket.org/datarepo/eved_dataset.git",
+        &eved_destination,
+    ) {
+        clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_destination)
     } else {
         false
     }
