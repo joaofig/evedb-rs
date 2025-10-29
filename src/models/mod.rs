@@ -1,2 +1,2 @@
-pub(crate) mod vehicle;
 mod signal;
+pub(crate) mod vehicle;

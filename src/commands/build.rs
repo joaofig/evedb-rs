@@ -61,7 +61,7 @@ fn build_vehicles(cli: &Cli) {
 
 fn build_signals(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
-    
+
     db.create_signal_table().unwrap_or(0);
 }
 
