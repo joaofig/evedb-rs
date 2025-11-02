@@ -11,6 +11,8 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 anyhow = "1.0.100"
 zip = "6.0.0"
 text-block-macros = "0.2.0"
+csv = "1.4.0"
+serde = { version = "1.0.228", features = ["derive"] }
 
 [profile.release]
 panic = 'abort'
