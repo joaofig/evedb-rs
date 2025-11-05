@@ -2,7 +2,7 @@ use crate::cli::{BuildCommandArgs, Cli};
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
 use crate::db::evedb::EveDb;
-use crate::etl::extract::signals::{get_signal_filenames, get_signals};
+use crate::etl::extract::signals::{get_signal_filenames, insert_signals};
 use crate::etl::extract::vehicles::read_vehicles;
 
 fn build_vehicles(cli: &Cli) {
@@ -21,7 +21,7 @@ fn build_signals(cli: &Cli) {
     for filename in filenames {
         println!("Processing {}", filename);
 
-        let signals = get_signals(cli, &filename);
+        insert_signals(cli, &filename);
     }
 }
 

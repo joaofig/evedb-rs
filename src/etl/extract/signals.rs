@@ -2,6 +2,7 @@ use std::fs;
 use std::io::Read;
 use crate::models::signal::CsvSignal;
 use crate::cli::Cli;
+syncuse crate::db::evedb::EveDb;
 
 pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
@@ -31,9 +32,10 @@ fn get_signal_data(cli: &Cli, data_filename: &str) -> String {
     csv
 }
 
-pub fn get_signals(cli: &Cli, data_file: &str) -> Vec<CsvSignal> {
+pub fn insert_signals(cli: &Cli, data_file: &str) {
     let mut signals: Vec<CsvSignal> = Vec::new();
     let mut csv = get_signal_data(cli, data_file);
+    let db = EveDb::new(&cli.db_path);
 
     // Replace "nan" and ';' with null
     csv = csv.replace("nan", "");
@@ -45,5 +47,4 @@ pub fn get_signals(cli: &Cli, data_file: &str) -> Vec<CsvSignal> {
         let signal: CsvSignal = result.unwrap();
         signals.push(signal);
     }
-    signals
 }
