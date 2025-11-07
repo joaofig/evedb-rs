@@ -2,7 +2,7 @@ use std::fs;
 use std::io::Read;
 use crate::models::signal::CsvSignal;
 use crate::cli::Cli;
-syncuse crate::db::evedb::EveDb;
+use crate::db::evedb::EveDb;
 
 pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
