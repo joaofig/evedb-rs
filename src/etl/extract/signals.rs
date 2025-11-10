@@ -32,10 +32,11 @@ fn get_signal_data(cli: &Cli, data_filename: &str) -> String {
     csv
 }
 
-pub fn insert_signals(cli: &Cli, data_file: &str) {
+pub fn insert_signals(cli: &Cli, data_file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut signals: Vec<CsvSignal> = Vec::new();
     let mut csv = get_signal_data(cli, data_file);
     let db = EveDb::new(&cli.db_path);
+    let mut trip_id: f64 = -1.0;
 
     // Replace "nan" and ';' with null
     csv = csv.replace("nan", "");
@@ -45,6 +46,17 @@ pub fn insert_signals(cli: &Cli, data_file: &str) {
 
     for result in reader.deserialize() {
         let signal: CsvSignal = result.unwrap();
+
+        if signal.trip_id != trip_id && signals.len() > 0 {
+            db.insert_signals(&signals)?;
+        }
+
+        trip_id = signal.trip_id;
         signals.push(signal);
+
+        if signals.len() > 0 {
+            db.insert_signals(&signals)?;
+        }
     }
+    Ok(())
 }

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct CsvSignal {
     #[serde(rename = "VehId")]
     pub vehicle_id: f64,
@@ -70,50 +70,4 @@ pub struct CsvSignal {
     pub bus_stop: Option<f64>,
     #[serde(rename = "Focus Points")]
     pub focus_points: Option<String>,
-}
-
-impl CsvSignal {
-    pub fn to_tuple(&self) -> (i64, i64, i64, f64, f64, Option<f64>, Option<f64>, Option<f64>,
-                               Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>,
-                               Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>,
-                               Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>,
-                               Option<f64>, Option<f64>, f64, f64, f64, Option<f64>, Option<String>,
-                               Option<i64>, Option<i64>, Option<i64>, Option<String>) {
-        (
-            self.vehicle_id as i64,
-            self.trip_id as i64,
-            self.time_stamp as i64,
-            self.latitude,
-            self.longitude,
-            self.speed,
-            self.maf,
-            self.rpm,
-            self.abs_load,
-            self.oat,
-            self.fuel_rate,
-            self.ac_power_kw,
-            self.ac_power_w,
-            self.heater_power_w,
-            self.hv_bat_current,
-            self.hv_bat_soc,
-            self.hv_bat_volt,
-            self.st_ftb_1,
-            self.st_ftb_2,
-            self.lt_ftb_1,
-            self.lt_ftb_2,
-            self.elevation,
-            self.elevation_smooth,
-            self.gradient,
-            self.energy_consumption,
-            self.match_latitude,
-            self.match_longitude,
-            self.match_type,
-            self.speed_limit_type,
-            self.speed_limit.clone(),
-            self.speed_limit_direct.map(|f| f as i64),
-            self.intersection.map(|f| f as i64),
-            self.bus_stop.map(|f| f as i64),
-            self.focus_points.clone(),
-        )
-    }
 }

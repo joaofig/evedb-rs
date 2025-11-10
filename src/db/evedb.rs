@@ -1,7 +1,7 @@
 use crate::db::api::SqliteDb;
 use crate::models::vehicle::Vehicle;
 use crate::models::signal::CsvSignal;
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use rusqlite::Result;
 use text_block_macros::text_block;
 
@@ -15,7 +15,7 @@ impl EveDb {
         EveDb { db: database }
     }
 
-    fn connect(&self) -> Result<Connection> {
+    pub fn connect(&self) -> Result<Connection> {
         self.db.connect()
     }
 
@@ -87,7 +87,9 @@ impl EveDb {
         }
     }
     
-    pub fn insert_signal(&self, signal: &CsvSignal) -> Result<()> {
+    fn insert_signal(&self,
+                     transaction: &rusqlite::Transaction,
+                     signal: &CsvSignal) -> Result<()> {
         let sql = text_block! {
             "INSERT INTO main.signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -102,6 +104,54 @@ impl EveDb {
             "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,"
             " ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34);"
         };
+        transaction.execute(sql,
+                            params![
+                                signal.vehicle_id as i64,
+                                signal.trip_id as i64,
+                                signal.time_stamp as i64,
+                                signal.latitude,
+                                signal.longitude,
+                                signal.speed,
+                                signal.maf,
+                                signal.rpm,
+                                signal.abs_load,
+                                signal.oat,
+                                signal.fuel_rate,
+                                signal.ac_power_kw,
+                                signal.ac_power_w,
+                                signal.heater_power_w,
+                                signal.hv_bat_current,
+                                signal.hv_bat_soc,
+                                signal.hv_bat_volt,
+                                signal.st_ftb_1,
+                                signal.st_ftb_2,
+                                signal.lt_ftb_1,
+                                signal.lt_ftb_2,
+                                signal.elevation,
+                                signal.elevation_smooth,
+                                signal.gradient,
+                                signal.energy_consumption,
+                                signal.match_latitude,
+                                signal.match_longitude,
+                                signal.match_type,
+                                signal.speed_limit_type,
+                                signal.speed_limit.clone(),
+                                signal.speed_limit_direct.map(|f| f as i64),
+                                signal.intersection.map(|f| f as i64),
+                                signal.bus_stop.map(|f| f as i64),
+                                signal.focus_points.clone(),
+                            ])?;
+        Ok(())
+    }
+
+    pub fn insert_signals(&self, signals: &Vec<CsvSignal>) -> Result<()> {
+        let mut conn = self.connect()?;
+        let transaction = conn.transaction()?;
+
+        for signal in signals {
+            self.insert_signal(&transaction, signal)?
+        }
+        transaction.commit()?;
         Ok(())
     }
 
