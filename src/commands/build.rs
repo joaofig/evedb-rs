@@ -21,7 +21,7 @@ fn build_signals(cli: &Cli) {
     for filename in filenames {
         println!("Processing {}", filename);
 
-        insert_signals(cli, &filename);
+        let _ = insert_signals(cli, &filename);
     }
 }
 
