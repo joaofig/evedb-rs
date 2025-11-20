@@ -2,6 +2,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct CsvSignal {
+    #[serde(rename = "DayNum")]
+    pub day_num: f64,
     #[serde(rename = "VehId")]
     pub vehicle_id: f64,
     #[serde(rename = "Trip")]

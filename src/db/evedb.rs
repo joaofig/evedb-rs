@@ -1,7 +1,7 @@
 use crate::db::api::SqliteDb;
 use crate::models::vehicle::Vehicle;
 use crate::models::signal::CsvSignal;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction};
 use rusqlite::Result;
 use text_block_macros::text_block;
 
@@ -21,7 +21,7 @@ impl EveDb {
 
     pub fn create_vehicle_table(&self) -> Result<usize> {
         let conn = self.connect()?;
-        if conn.table_exists(None, "main.vehicle")? {
+        if !conn.table_exists(None, "main.vehicle")? {
             let sql = "
                 CREATE TABLE IF NOT EXISTS main.vehicle (
                     vehicle_id    INTEGER primary key,
@@ -41,7 +41,7 @@ impl EveDb {
     pub fn create_signal_table(&self) -> Result<usize> {
         let conn = self.connect()?;
 
-        if conn.table_exists(None, "main.vehicle")? {
+        if !conn.table_exists(None, "main.vehicle")? {
             let sql = text_block! {
             "create table if not exists main.signal ("
             "   signal_id          INTEGER primary key,"
@@ -87,9 +87,9 @@ impl EveDb {
         }
     }
     
-    fn insert_signal(&self,
-                     transaction: &rusqlite::Transaction,
-                     signal: &CsvSignal) -> Result<()> {
+    pub fn insert_signal(&self,
+                         transaction: &Transaction,
+                         signal: &CsvSignal) -> anyhow::Result<()> {
         let sql = text_block! {
             "INSERT INTO main.signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -102,10 +102,12 @@ impl EveDb {
             "   intersection, bus_stop, focus_points, h3_12) "
             "VALUES "
             "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,"
-            " ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34);"
+            " ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34,"
+            " ?35, ?36);"
         };
         transaction.execute(sql,
                             params![
+                                signal.day_num as i64,
                                 signal.vehicle_id as i64,
                                 signal.trip_id as i64,
                                 signal.time_stamp as i64,
@@ -140,18 +142,8 @@ impl EveDb {
                                 signal.intersection.map(|f| f as i64),
                                 signal.bus_stop.map(|f| f as i64),
                                 signal.focus_points.clone(),
+                                0
                             ])?;
-        Ok(())
-    }
-
-    pub fn insert_signals(&self, signals: &Vec<CsvSignal>) -> Result<()> {
-        let mut conn = self.connect()?;
-        let transaction = conn.transaction()?;
-
-        for signal in signals {
-            self.insert_signal(&transaction, signal)?
-        }
-        transaction.commit()?;
         Ok(())
     }
 
@@ -173,9 +165,5 @@ impl EveDb {
             transaction.execute(sql, vehicle.to_tuple())?;
         }
         transaction.commit()
-    }
-
-    pub fn create_tables(&self) {
-        self.create_vehicle_table().unwrap_or(0);
     }
 }

@@ -21,7 +21,11 @@ fn build_signals(cli: &Cli) {
     for filename in filenames {
         println!("Processing {}", filename);
 
-        let _ = insert_signals(cli, &filename);
+        let result = insert_signals(cli, &filename);
+        if let Err(e) = result {
+            println!("Failed to insert signals {}", e);
+            break
+        }
     }
 }
 

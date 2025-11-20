@@ -32,31 +32,37 @@ fn get_signal_data(cli: &Cli, data_filename: &str) -> String {
     csv
 }
 
-pub fn insert_signals(cli: &Cli, data_file: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut signals: Vec<CsvSignal> = Vec::new();
+pub fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
     let mut csv = get_signal_data(cli, data_file);
     let db = EveDb::new(&cli.db_path);
-    let mut trip_id: f64 = -1.0;
+    let mut connection = db.connect()?;
+    let tx = connection.transaction()?;
 
     // Replace "nan" and ';' with null
     csv = csv.replace("nan", "");
     csv = csv.replace(";", "");
 
     let mut reader = csv::Reader::from_reader(csv.as_bytes());
+    let mut insert_result: anyhow::Result<()> = Ok(());
 
-    for result in reader.deserialize() {
-        let signal: CsvSignal = result.unwrap();
-
-        if signal.trip_id != trip_id && signals.len() > 0 {
-            db.insert_signals(&signals)?;
-        }
-
-        trip_id = signal.trip_id;
-        signals.push(signal);
-
-        if signals.len() > 0 {
-            db.insert_signals(&signals)?;
+    for row in reader.deserialize() {
+        let signal: CsvSignal = row.unwrap();
+        insert_result = db.insert_signal(&tx, &signal);
+        match &insert_result {
+            Ok(_) => { },
+            Err(e) => {
+                eprintln!("Error inserting signal: {}", e);
+                break
+            },
         }
     }
-    Ok(())
+    match insert_result {
+        Ok(_) => {
+            tx.commit()?;
+        },
+        Err(_) => {
+            tx.rollback()?;
+        }
+    }
+    insert_result
 }
