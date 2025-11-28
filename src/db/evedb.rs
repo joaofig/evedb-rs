@@ -1,6 +1,7 @@
 use crate::db::api::SqliteDb;
 use crate::models::vehicle::Vehicle;
 use crate::models::signal::CsvSignal;
+use h3o::{LatLng, Resolution};
 use rusqlite::{params, Connection, Transaction};
 use rusqlite::Result;
 use text_block_macros::text_block;
@@ -105,6 +106,12 @@ impl EveDb {
             " ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34,"
             " ?35, ?36);"
         };
+
+        let coord = LatLng::new(signal.match_latitude, signal.match_longitude)
+            .expect("valid coord");
+        let cell = coord.to_cell(Resolution::Twelve);
+        let index: u64 = cell.into();
+
         transaction.execute(sql,
                             params![
                                 signal.day_num as i64,
@@ -142,7 +149,7 @@ impl EveDb {
                                 signal.intersection.map(|f| f as i64),
                                 signal.bus_stop.map(|f| f as i64),
                                 signal.focus_points.clone(),
-                                0
+                                index
                             ])?;
         Ok(())
     }
