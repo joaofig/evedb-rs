@@ -1,3 +1,4 @@
+use indicatif::ProgressIterator;
 use crate::cli::{BuildCommandArgs, Cli};
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
@@ -18,8 +19,8 @@ fn build_signals(cli: &Cli) {
     db.create_signal_table().unwrap_or(0);
 
     let filenames = get_signal_filenames(cli);
-    for filename in filenames {
-        println!("Processing {}", filename);
+    for filename in filenames.iter().progress() {
+        // println!("Processing {}", filename);
 
         let result = insert_signals(cli, &filename);
         if let Err(e) = result {

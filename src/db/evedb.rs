@@ -2,6 +2,7 @@ use crate::db::api::SqliteDb;
 use crate::models::vehicle::Vehicle;
 use crate::models::signal::CsvSignal;
 use h3o::{LatLng, Resolution};
+use indicatif::ProgressIterator;
 use rusqlite::{params, Connection, Transaction};
 use rusqlite::Result;
 use text_block_macros::text_block;
@@ -168,7 +169,7 @@ impl EveDb {
         let mut conn = self.connect()?;
         let transaction = conn.transaction()?;
 
-        for vehicle in vehicles {
+        for vehicle in vehicles.iter().progress() {
             transaction.execute(sql, vehicle.to_tuple())?;
         }
         transaction.commit()
