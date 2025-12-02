@@ -155,6 +155,12 @@ impl EveDb {
         Ok(())
     }
 
+    pub fn create_signal_indexes(&self) -> Result<usize> {
+        let conn = self.connect()?;
+        let sql = "CREATE INDEX IF NOT EXISTS signal_h3_idx ON main.signal (h3_12);";
+        conn.execute(sql, [])
+    }
+
     pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<()> {
         let sql = "
         INSERT INTO main.vehicle (
@@ -173,5 +179,38 @@ impl EveDb {
             transaction.execute(sql, vehicle.to_tuple())?;
         }
         transaction.commit()
+    }
+
+    pub fn create_trajectory_table(&self) -> Result<usize> {
+        let conn = self.connect()?;
+        if !conn.table_exists(None, "main.trajectory")? {
+            let sql = text_block! {
+                "CREATE TABLE IF NOT EXISTS main.trajectory ("
+                "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "    vehicle_id  INTEGER NOT NULL,"
+                "    trip_id     INTEGER NOT NULL,"
+                "    length_m    DOUBLE,"
+                "    dt_ini      TEXT,"
+                "    dt_end      TEXT,"
+                "    duration_s  DOUBLE,"
+                "    h3_12_ini   INTEGER,"
+                "    h3_12_end   INTEGER"
+                ");" };
+            conn.execute(sql, [])
+        } else {
+            Ok(0)
+        }
+    }
+
+    pub fn insert_trajectories(&self) -> Result<usize> {
+        let conn = self.connect()?;
+
+        self.create_trajectory_table()?;
+
+        let sql = text_block! {
+            "INSERT INTO trajectory (vehicle_id, trip_id)"
+            "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
+        };
+        conn.execute(sql, [])
     }
 }
