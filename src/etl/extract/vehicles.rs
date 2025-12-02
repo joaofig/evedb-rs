@@ -6,7 +6,7 @@ fn no_data_str(data: &Option<String>) -> Option<String> {
     match data {
         Some(data) => {
             let text = data.to_string();
-            if text == "NO DATA" { None } else { Some(text) }
+            if text.starts_with("NO DATA") { None } else { Some(text) }
         }
         None => None,
     }

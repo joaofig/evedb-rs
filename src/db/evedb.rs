@@ -6,6 +6,7 @@ use indicatif::ProgressIterator;
 use rusqlite::{params, Connection, Transaction};
 use rusqlite::Result;
 use text_block_macros::text_block;
+use crate::models::trajectory::TrajectoryPoint;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -212,5 +213,45 @@ impl EveDb {
             "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
         };
         conn.execute(sql, [])
+    }
+
+    pub fn get_trajectory_ids(&self) -> Result<Vec<i64>> {
+        let conn = self.connect()?;
+        let sql = text_block! {
+            "SELECT traj_id FROM trajectory"
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let ids = stmt.query_map([], |row| row.get(0))?;
+        let ids: Result<Vec<i64>> = ids.collect();
+        ids
+    }
+
+    pub fn get_trajectory(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>> {
+        let conn = self.connect()?;
+        let sql = text_block! {
+            "select     s.signal_id"
+            ",          s.vehicle_id"
+            ",          s.day_num"
+            ",          s.time_stamp"
+            ",          s.match_latitude"
+            ",          s.match_longitude"
+            "from       signal s"
+            "inner join trajectory t on s.trip_id = t.trip_id"
+            "where      t.traj_id = ?1"
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let points = stmt.query_map([trajectory_id],
+                                    |row| {
+                                        Ok(TrajectoryPoint {
+                                            signal_id: row.get(0)?,
+                                            vehicle_id: row.get(1)?,
+                                            day_num: row.get(2)?,
+                                            time_stamp: row.get(3)?,
+                                            latitude: row.get(4)?,
+                                            longitude: row.get(5)?,
+                                        })
+                                    });
+
+        Ok(points?.collect::<Result<Vec<_>>>()?)
     }
 }
