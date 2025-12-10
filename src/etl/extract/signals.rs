@@ -1,8 +1,8 @@
-use std::fs;
-use std::io::Read;
-use crate::models::signal::CsvSignal;
 use crate::cli::Cli;
 use crate::db::evedb::EveDb;
+use crate::models::signal::CsvSignal;
+use std::fs;
+use std::io::Read;
 
 pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
@@ -49,17 +49,17 @@ pub fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
         let signal: CsvSignal = row.unwrap();
         insert_result = db.insert_signal(&tx, &signal);
         match &insert_result {
-            Ok(_) => { },
+            Ok(_) => {}
             Err(e) => {
                 eprintln!("Error inserting signal: {}", e);
-                break
-            },
+                break;
+            }
         }
     }
     match insert_result {
         Ok(_) => {
             tx.commit()?;
-        },
+        }
         Err(_) => {
             tx.rollback()?;
         }

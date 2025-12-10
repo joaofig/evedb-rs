@@ -1,12 +1,12 @@
 use crate::db::api::SqliteDb;
-use crate::models::vehicle::Vehicle;
 use crate::models::signal::CsvSignal;
-use h3o::{LatLng, Resolution};
+use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
+use crate::models::vehicle::Vehicle;
+use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use rusqlite::{params, Connection, Transaction};
 use rusqlite::Result;
+use rusqlite::{Connection, Transaction, params};
 use text_block_macros::text_block;
-use crate::models::trajectory::TrajectoryPoint;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -27,7 +27,7 @@ impl EveDb {
         if !conn.table_exists(None, "main.vehicle")? {
             let sql = "
                 CREATE TABLE IF NOT EXISTS main.vehicle (
-                    vehicle_id    INTEGER primary key,
+                    vehicle_id    INTEGER primary key AUTOINCREMENT,
                     vehicle_type  TEXT,
                     vehicle_class TEXT,
                     engine        TEXT,
@@ -47,7 +47,7 @@ impl EveDb {
         if !conn.table_exists(None, "main.vehicle")? {
             let sql = text_block! {
             "create table if not exists main.signal ("
-            "   signal_id          INTEGER primary key,"
+            "   signal_id          INTEGER primary key AUTOINCREMENT,"
             "   day_num            DOUBLE  not null,"
             "   vehicle_id         INTEGER not null,"
             "   trip_id            INTEGER not null,"
@@ -89,10 +89,12 @@ impl EveDb {
             Ok(0)
         }
     }
-    
-    pub fn insert_signal(&self,
-                         transaction: &Transaction,
-                         signal: &CsvSignal) -> anyhow::Result<()> {
+
+    pub fn insert_signal(
+        &self,
+        transaction: &Transaction,
+        signal: &CsvSignal,
+    ) -> anyhow::Result<()> {
         let sql = text_block! {
             "INSERT INTO main.signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -109,50 +111,49 @@ impl EveDb {
             " ?35, ?36);"
         };
 
-        let coord = LatLng::new(signal.match_latitude, signal.match_longitude)
-            .expect("valid coord");
-        let cell = coord.to_cell(Resolution::Twelve);
-        let index: u64 = cell.into();
+        let index: u64 = lat_lng_to_h3_12(signal.match_latitude, signal.match_longitude);
 
-        transaction.execute(sql,
-                            params![
-                                signal.day_num as i64,
-                                signal.vehicle_id as i64,
-                                signal.trip_id as i64,
-                                signal.time_stamp as i64,
-                                signal.latitude,
-                                signal.longitude,
-                                signal.speed,
-                                signal.maf,
-                                signal.rpm,
-                                signal.abs_load,
-                                signal.oat,
-                                signal.fuel_rate,
-                                signal.ac_power_kw,
-                                signal.ac_power_w,
-                                signal.heater_power_w,
-                                signal.hv_bat_current,
-                                signal.hv_bat_soc,
-                                signal.hv_bat_volt,
-                                signal.st_ftb_1,
-                                signal.st_ftb_2,
-                                signal.lt_ftb_1,
-                                signal.lt_ftb_2,
-                                signal.elevation,
-                                signal.elevation_smooth,
-                                signal.gradient,
-                                signal.energy_consumption,
-                                signal.match_latitude,
-                                signal.match_longitude,
-                                signal.match_type,
-                                signal.speed_limit_type,
-                                signal.speed_limit.clone(),
-                                signal.speed_limit_direct.map(|f| f as i64),
-                                signal.intersection.map(|f| f as i64),
-                                signal.bus_stop.map(|f| f as i64),
-                                signal.focus_points.clone(),
-                                index
-                            ])?;
+        transaction.execute(
+            sql,
+            params![
+                signal.day_num as i64,
+                signal.vehicle_id as i64,
+                signal.trip_id as i64,
+                signal.time_stamp as i64,
+                signal.latitude,
+                signal.longitude,
+                signal.speed,
+                signal.maf,
+                signal.rpm,
+                signal.abs_load,
+                signal.oat,
+                signal.fuel_rate,
+                signal.ac_power_kw,
+                signal.ac_power_w,
+                signal.heater_power_w,
+                signal.hv_bat_current,
+                signal.hv_bat_soc,
+                signal.hv_bat_volt,
+                signal.st_ftb_1,
+                signal.st_ftb_2,
+                signal.lt_ftb_1,
+                signal.lt_ftb_2,
+                signal.elevation,
+                signal.elevation_smooth,
+                signal.gradient,
+                signal.energy_consumption,
+                signal.match_latitude,
+                signal.match_longitude,
+                signal.match_type,
+                signal.speed_limit_type,
+                signal.speed_limit.clone(),
+                signal.speed_limit_direct.map(|f| f as i64),
+                signal.intersection.map(|f| f as i64),
+                signal.bus_stop.map(|f| f as i64),
+                signal.focus_points.clone(),
+                index
+            ],
+        )?;
         Ok(())
     }
 
@@ -186,17 +187,17 @@ impl EveDb {
         let conn = self.connect()?;
         if !conn.table_exists(None, "main.trajectory")? {
             let sql = text_block! {
-                "CREATE TABLE IF NOT EXISTS main.trajectory ("
-                "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "    vehicle_id  INTEGER NOT NULL,"
-                "    trip_id     INTEGER NOT NULL,"
-                "    length_m    DOUBLE,"
-                "    dt_ini      TEXT,"
-                "    dt_end      TEXT,"
-                "    duration_s  DOUBLE,"
-                "    h3_12_ini   INTEGER,"
-                "    h3_12_end   INTEGER"
-                ");" };
+            "CREATE TABLE IF NOT EXISTS main.trajectory ("
+            "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "    vehicle_id  INTEGER NOT NULL,"
+            "    trip_id     INTEGER NOT NULL,"
+            "    length_m    DOUBLE,"
+            "    dt_ini      TEXT,"
+            "    dt_end      TEXT,"
+            "    duration_s  DOUBLE,"
+            "    h3_12_ini   INTEGER,"
+            "    h3_12_end   INTEGER"
+            ");" };
             conn.execute(sql, [])
         } else {
             Ok(0)
@@ -226,7 +227,7 @@ impl EveDb {
         ids
     }
 
-    pub fn get_trajectory(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>> {
+    pub fn get_trajectory_points(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "select     s.signal_id"
@@ -240,18 +241,61 @@ impl EveDb {
             "where      t.traj_id = ?1"
         };
         let mut stmt = conn.prepare(sql)?;
-        let points = stmt.query_map([trajectory_id],
-                                    |row| {
-                                        Ok(TrajectoryPoint {
-                                            signal_id: row.get(0)?,
-                                            vehicle_id: row.get(1)?,
-                                            day_num: row.get(2)?,
-                                            time_stamp: row.get(3)?,
-                                            latitude: row.get(4)?,
-                                            longitude: row.get(5)?,
-                                        })
-                                    });
+        let points = stmt.query_map([trajectory_id], |row| {
+            Ok(TrajectoryPoint {
+                signal_id: row.get(0)?,
+                vehicle_id: row.get(1)?,
+                day_num: row.get(2)?,
+                time_stamp: row.get(3)?,
+                latitude: row.get(4)?,
+                longitude: row.get(5)?,
+            })
+        });
 
         Ok(points?.collect::<Result<Vec<_>>>()?)
+    }
+
+    pub fn update_trajectory(&self, trajectory: &TrajectoryUpdate) -> Result<usize> {
+        let conn = self.connect()?;
+        let sql = text_block! {
+            "UPDATE main.trajectory"
+            "SET    length_m = ?1"
+            ",      dt_ini = ?2"
+            ",      dt_end = ?3"
+            ",      duration_s = ?4"
+            ",      h3_12_ini = ?5"
+            ",      h3_12_end = ?6"
+            "WHERE  traj_id = ?7;"
+        };
+        conn.execute(
+            sql,
+            params![
+                trajectory.length_m,
+                trajectory.dt_ini,
+                trajectory.dt_end,
+                trajectory.duration_s,
+                trajectory.h3_12_ini,
+                trajectory.h3_12_end,
+                trajectory.traj_id,
+            ],
+        )
+    }
+
+    pub fn create_node_table(&self) -> Result<usize> {
+        let conn = self.connect()?;
+        if !conn.table_exists(None, "main.trajectory")? {
+            let sql = text_block! {
+            "CREATE TABLE IF NOT EXISTS main.node ("
+            "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "    traj_id         INTEGER NOT NULL,"
+            "    latitude        DOUBLE,"
+            "    longitude       DOUBLE,"
+            "    h3_12           INTEGER,"
+            "    match_error     TEXT"
+            ");" };
+            conn.execute(sql, [])
+        } else {
+            Ok(0)
+        }
     }
 }

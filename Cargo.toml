@@ -16,6 +16,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 h3o = "0.9.3"
 indicatif = "0.18.3"
 reqwest = { version = "0.12.24", features = ["json", "gzip"]}
+geo = "0.32.0"
+chrono = "0.4.42"
+chrono-tz = "0.10.4"
 
 [profile.release]
 panic = 'abort'

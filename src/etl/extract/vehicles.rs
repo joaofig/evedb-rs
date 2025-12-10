@@ -1,12 +1,16 @@
-use calamine::{open_workbook, DataType, Reader, Xlsx};
 use crate::cli::Cli;
 use crate::models::vehicle::Vehicle;
+use calamine::{DataType, Reader, Xlsx, open_workbook};
 
 fn no_data_str(data: &Option<String>) -> Option<String> {
     match data {
         Some(data) => {
             let text = data.to_string();
-            if text.starts_with("NO DATA") { None } else { Some(text) }
+            if text.starts_with("NO DATA") {
+                None
+            } else {
+                Some(text)
+            }
         }
         None => None,
     }

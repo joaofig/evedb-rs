@@ -1,8 +1,9 @@
 mod cli;
 mod commands;
 mod db;
-mod models;
 mod etl;
+mod models;
+mod tools;
 
 use crate::cli::Commands;
 use crate::commands::build::build_database;
