@@ -18,7 +18,7 @@ async fn main() {
 
     match &cli.command {
         Commands::Build(args) => {
-            build_database(&cli, args);
+            build_database(&cli, args).await;
         }
         Commands::Clean => {
             clean_data(&cli);
