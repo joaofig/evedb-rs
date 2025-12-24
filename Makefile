@@ -19,3 +19,9 @@ podman-run:
 	-e tile_urls=http://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
 	-e serve_tiles=True -e build_admins=True \
 	ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
+
+build:
+	cargo run --package evedb --bin evedb -- \
+	--repo-path ~/data/eved/repo \
+	--db-path /Users/joaofig/data/eved/db/eved.db \
+	--verbose build --no-clean --no-clone

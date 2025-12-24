@@ -4,7 +4,7 @@ use crate::commands::clone::clone_data;
 use crate::db::evedb::EveDb;
 use crate::etl::extract::signals::{get_signal_filenames, insert_signals};
 use crate::etl::extract::vehicles::read_vehicles;
-use crate::models::trajectory::{TrajectoryUpdate};
+use crate::models::trajectory::TrajectoryUpdate;
 use crate::tools::lat_lng_to_h3_12;
 use async_stream::stream;
 use chrono::{DateTime, Duration, TimeZone};
@@ -47,7 +47,6 @@ fn build_signals(cli: &Cli) {
     }
     db.create_signal_indexes().unwrap_or(0);
 }
-
 
 fn trajectory_updates(db: &EveDb) -> impl Stream<Item = TrajectoryUpdate> {
     let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
@@ -110,9 +109,26 @@ async fn build_trajectories(cli: &Cli) {
             ,           h3_12_end = ?
             WHERE       traj_id = ?
             ",
-            );
+    );
+
+    if cli.verbose {
+        println!("Creating the trajectory table")
+    }
 
     pin_mut!(stream);
+
+    let result = db.create_trajectory_table();
+    if result.is_err() {
+        panic!("Failed to create trajectory table {}", result.err().unwrap());
+    }
+
+    if cli.verbose {
+        println!("Inserting trajectory records")
+    }
+    let result = db.insert_trajectories();
+    if result.is_err() {
+        panic!("Failed to insert trajectory records {}", result.err().unwrap());
+    }
 
     let try_conn = db.connect();
     match try_conn {
@@ -125,12 +141,12 @@ async fn build_trajectories(cli: &Cli) {
                         let result = tx.execute(
                             &sql,
                             params![
-                                update.traj_id,
                                 update.length_m,
                                 update.dt_ini,
                                 update.dt_end,
                                 update.duration_s,
-                                update.h3_12_ini
+                                update.h3_12_ini,
+                                update.traj_id,
                             ],
                         );
                         if result.is_err() {
@@ -142,10 +158,10 @@ async fn build_trajectories(cli: &Cli) {
                         }
                     }
                     tx.commit().unwrap_or(());
-                },
+                }
                 Err(e) => {
                     panic!("Failed to start transaction {}", e)
-                },
+                }
             }
         }
         Err(e) => panic!("Failed to connect to the database {}", e),
