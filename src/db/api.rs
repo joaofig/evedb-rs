@@ -1,4 +1,5 @@
-use rusqlite::{Connection, Result};
+use std::result::Result;
+use sqlx::{SqlitePool, Sqlite, Pool, Error};
 
 pub struct SqliteDb {
     path: String,
@@ -7,11 +8,11 @@ pub struct SqliteDb {
 impl SqliteDb {
     pub fn new(path: &str) -> Self {
         Self {
-            path: path.to_string(),
+            path: format!("sqlite://{}", path.to_string()),
         }
     }
 
-    pub fn connect(&self) -> Result<Connection> {
-        Connection::open(self.path.clone())
+    pub async fn connect(&self) -> std::result::Result<Pool<Sqlite>, Error> {
+        SqlitePool::connect(&self.path).await
     }
 }

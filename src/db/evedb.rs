@@ -1,11 +1,12 @@
+use std::result::Result;
 use crate::db::api::SqliteDb;
 use crate::models::signal::CsvSignal;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use rusqlite::Result;
-use rusqlite::{Connection, Transaction, params};
+use sqlx::{SqlitePool, Sqlite, Pool, Error, Executor, Row};
+use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use text_block_macros::text_block;
 
 pub struct EveDb {
@@ -18,83 +19,101 @@ impl EveDb {
         EveDb { db: database }
     }
 
-    pub fn connect(&self) -> Result<Connection> {
-        self.db.connect()
+    pub async fn connect(&self) -> Result<Pool<Sqlite>, Error> {
+        self.db.connect().await
     }
 
-    pub fn create_vehicle_table(&self) -> Result<usize> {
-        let conn = self.connect()?;
-        if !conn.table_exists(None, "main.vehicle")? {
-            let sql = "
-                CREATE TABLE IF NOT EXISTS main.vehicle (
-                    vehicle_id    INTEGER primary key AUTOINCREMENT,
-                    vehicle_type  TEXT,
-                    vehicle_class TEXT,
-                    engine        TEXT,
-                    transmission  TEXT,
-                    drive_wheels  TEXT,
-                    weight        INTEGER
-                ) STRICT";
-            conn.execute(sql, [])
-        } else {
-            Ok(0)
+    pub async fn create_vehicle_table(&self) -> Result<SqliteQueryResult, Error> {
+        let try_conn = self.connect().await;
+        
+        let conn = match try_conn {
+            Err(e) => return Err(e),
+            Ok(conn) => conn,
+        };
+        
+        conn.execute("DROP TABLE IF EXISTS main.vehicle;").await
+            .expect("Failed to drop vehicle table");
+        
+        let sql = "
+            CREATE TABLE IF NOT EXISTS main.vehicle (
+                vehicle_id    INTEGER primary key AUTOINCREMENT,
+                vehicle_type  TEXT,
+                vehicle_class TEXT,
+                engine        TEXT,
+                transmission  TEXT,
+                drive_wheels  TEXT,
+                weight        INTEGER
+            ) STRICT";
+        conn.execute(sql).await
+    }
+
+    pub async fn create_signal_table(&self) -> Result<SqliteQueryResult, Error> {
+        let try_conn = self.connect().await;
+
+        let conn = match try_conn {
+            Err(e) => return Err(e),
+            Ok(conn) => conn,
+        };
+
+        conn.execute("DROP TABLE IF EXISTS main.signal;").await
+            .expect("Failed to drop signal table");
+        let sql = text_block! {
+        "create table if not exists main.signal ("
+        "   signal_id          INTEGER primary key AUTOINCREMENT,"
+        "   day_num            DOUBLE  not null,"
+        "   vehicle_id         INTEGER not null,"
+        "   trip_id            INTEGER not null,"
+        "   time_stamp         INTEGER not null,"
+        "   latitude           DOUBLE  not null,"
+        "   longitude          DOUBLE  not null,"
+        "   speed              DOUBLE,"
+        "   maf                DOUBLE,"
+        "   rpm                DOUBLE,"
+        "   abs_load           DOUBLE,"
+        "   oat                DOUBLE,"
+        "   fuel_rate          DOUBLE,"
+        "   ac_power_kw        DOUBLE,"
+        "   ac_power_w         DOUBLE,"
+        "   heater_power_w     DOUBLE,"
+        "   hv_bat_current     DOUBLE,"
+        "   hv_bat_soc         DOUBLE,"
+        "   hv_bat_volt        DOUBLE,"
+        "   st_ftb_1           DOUBLE,"
+        "   st_ftb_2           DOUBLE,"
+        "   lt_ftb_1           DOUBLE,"
+        "   lt_ftb_2           DOUBLE,"
+        "   elevation          DOUBLE,"
+        "   elevation_smooth   DOUBLE,"
+        "   gradient           DOUBLE,"
+        "   energy_consumption DOUBLE,"
+        "   match_latitude     DOUBLE  not null,"
+        "   match_longitude    DOUBLE  not null,"
+        "   match_type         INTEGER not null,"
+        "   speed_limit_type   INTEGER,"
+        "   speed_limit        TEXT,"
+        "   speed_limit_direct INTEGER,"
+        "   intersection       INTEGER,"
+        "   bus_stop           INTEGER,"
+        "   focus_points       TEXT,"
+        "   h3_12              INTEGER);"};
+        conn.execute(sql).await
+    }
+
+    pub async fn insert_signals(&self, signals: &Vec<CsvSignal>) -> Result<SqliteQueryResult, Error> {
+        let conn = self.connect().await?;
+
+        conn.begin().await?;
+        for signal in signals.iter() {
+            self.insert_signal(&conn, signal).await?;
         }
+        Ok(SqliteQueryResult::default())
     }
 
-    pub fn create_signal_table(&self) -> Result<usize> {
-        let conn = self.connect()?;
-
-        if !conn.table_exists(None, "main.vehicle")? {
-            let sql = text_block! {
-            "create table if not exists main.signal ("
-            "   signal_id          INTEGER primary key AUTOINCREMENT,"
-            "   day_num            DOUBLE  not null,"
-            "   vehicle_id         INTEGER not null,"
-            "   trip_id            INTEGER not null,"
-            "   time_stamp         INTEGER not null,"
-            "   latitude           DOUBLE  not null,"
-            "   longitude          DOUBLE  not null,"
-            "   speed              DOUBLE,"
-            "   maf                DOUBLE,"
-            "   rpm                DOUBLE,"
-            "   abs_load           DOUBLE,"
-            "   oat                DOUBLE,"
-            "   fuel_rate          DOUBLE,"
-            "   ac_power_kw        DOUBLE,"
-            "   ac_power_w         DOUBLE,"
-            "   heater_power_w     DOUBLE,"
-            "   hv_bat_current     DOUBLE,"
-            "   hv_bat_soc         DOUBLE,"
-            "   hv_bat_volt        DOUBLE,"
-            "   st_ftb_1           DOUBLE,"
-            "   st_ftb_2           DOUBLE,"
-            "   lt_ftb_1           DOUBLE,"
-            "   lt_ftb_2           DOUBLE,"
-            "   elevation          DOUBLE,"
-            "   elevation_smooth   DOUBLE,"
-            "   gradient           DOUBLE,"
-            "   energy_consumption DOUBLE,"
-            "   match_latitude     DOUBLE  not null,"
-            "   match_longitude    DOUBLE  not null,"
-            "   match_type         INTEGER not null,"
-            "   speed_limit_type   INTEGER,"
-            "   speed_limit        TEXT,"
-            "   speed_limit_direct INTEGER,"
-            "   intersection       INTEGER,"
-            "   bus_stop           INTEGER,"
-            "   focus_points       TEXT,"
-            "   h3_12              INTEGER);"};
-            conn.execute(sql, [])
-        } else {
-            Ok(0)
-        }
-    }
-
-    pub fn insert_signal(
+    pub async fn insert_signal(
         &self,
-        transaction: &Transaction,
+        conn: &Pool<Sqlite>,
         signal: &CsvSignal,
-    ) -> anyhow::Result<()> {
+    ) -> Result<SqliteQueryResult, Error> {
         let sql = text_block! {
             "INSERT INTO main.signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -106,64 +125,61 @@ impl EveDb {
             "   match_type, speed_limit_type, speed_limit, speed_limit_direct, "
             "   intersection, bus_stop, focus_points, h3_12) "
             "VALUES "
-            "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,"
-            " ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34,"
-            " ?35, ?36);"
+            "($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,"
+            " $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,"
+            " $35, $36);"
         };
 
-        let index: u64 = lat_lng_to_h3_12(signal.match_latitude, signal.match_longitude);
+        let index: i64 = lat_lng_to_h3_12(signal.match_latitude, signal.match_longitude) as i64;
 
-        transaction.execute(
-            sql,
-            params![
-                signal.day_num as i64,
-                signal.vehicle_id as i64,
-                signal.trip_id as i64,
-                signal.time_stamp as i64,
-                signal.latitude,
-                signal.longitude,
-                signal.speed,
-                signal.maf,
-                signal.rpm,
-                signal.abs_load,
-                signal.oat,
-                signal.fuel_rate,
-                signal.ac_power_kw,
-                signal.ac_power_w,
-                signal.heater_power_w,
-                signal.hv_bat_current,
-                signal.hv_bat_soc,
-                signal.hv_bat_volt,
-                signal.st_ftb_1,
-                signal.st_ftb_2,
-                signal.lt_ftb_1,
-                signal.lt_ftb_2,
-                signal.elevation,
-                signal.elevation_smooth,
-                signal.gradient,
-                signal.energy_consumption,
-                signal.match_latitude,
-                signal.match_longitude,
-                signal.match_type,
-                signal.speed_limit_type,
-                signal.speed_limit.clone(),
-                signal.speed_limit_direct.map(|f| f as i64),
-                signal.intersection.map(|f| f as i64),
-                signal.bus_stop.map(|f| f as i64),
-                signal.focus_points.clone(),
-                index
-            ],
-        )?;
-        Ok(())
+        sqlx::query(sql)
+            .bind(signal.day_num as i64)
+            .bind(signal.vehicle_id as i64)
+            .bind(signal.trip_id as i64)
+            .bind(signal.time_stamp as i64)
+            .bind(signal.latitude)
+            .bind(signal.longitude)
+            .bind(signal.speed)
+            .bind(signal.maf)
+            .bind(signal.rpm)
+            .bind(signal.abs_load)
+            .bind(signal.oat)
+            .bind(signal.fuel_rate)
+            .bind(signal.ac_power_kw)
+            .bind(signal.ac_power_w)
+            .bind(signal.heater_power_w)
+            .bind(signal.hv_bat_current)
+            .bind(signal.hv_bat_soc)
+            .bind(signal.hv_bat_volt)
+            .bind(signal.st_ftb_1)
+            .bind(signal.st_ftb_2)
+            .bind(signal.lt_ftb_1)
+            .bind(signal.lt_ftb_2)
+            .bind(signal.elevation)
+            .bind(signal.elevation_smooth)
+            .bind(signal.gradient)
+            .bind(signal.energy_consumption)
+            .bind(signal.match_latitude)
+            .bind(signal.match_longitude)
+            .bind(signal.match_type)
+            .bind(signal.speed_limit_type)
+            .bind(signal.speed_limit.clone())
+            .bind(signal.speed_limit_direct.map(|f| f as i64))
+            .bind(signal.intersection.map(|f| f as i64))
+            .bind(signal.bus_stop.map(|f| f as i64))
+            .bind(signal.focus_points.clone())
+            .bind(index)
+            .execute(conn)
+            .await
     }
 
-    pub fn create_signal_indexes(&self) -> Result<usize> {
-        let conn = self.connect()?;
+    pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
+        let conn = self.connect().await?;
         let sql = "CREATE INDEX IF NOT EXISTS signal_h3_idx ON main.signal (h3_12);";
-        conn.execute(sql, [])
+        conn.execute(sql).await
     }
 
-    pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<()> {
+    pub async fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<SqliteQueryResult, Error> {
         let sql = "
         INSERT INTO main.vehicle (
             vehicle_id,
@@ -174,61 +190,69 @@ impl EveDb {
             drive_wheels,
             weight) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
 
-        let mut conn = self.connect()?;
-        let transaction = conn.transaction()?;
+        let conn = self.connect().await?;
+        let tx = conn.begin().await?;
 
         for vehicle in vehicles.iter().progress() {
-            transaction.execute(sql, vehicle.to_tuple())?;
+            let _ = sqlx::query(sql)
+                .bind(vehicle.vehicle_id)
+                .bind(vehicle.vehicle_type.clone())
+                .bind(vehicle.vehicle_class.clone())
+                .bind(vehicle.engine.clone())
+                .bind(vehicle.transmission.clone())
+                .bind(vehicle.drive_wheels.clone())
+                .bind(vehicle.weight)
+                .execute(&conn)
+                .await?;
         }
-        transaction.commit()
-    }
-
-    pub fn create_trajectory_table(&self) -> Result<usize> {
-        let conn = self.connect()?;
-        if !conn.table_exists(None, "main.trajectory")? {
-            let sql = text_block! {
-            "CREATE TABLE IF NOT EXISTS main.trajectory ("
-            "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "    vehicle_id  INTEGER NOT NULL,"
-            "    trip_id     INTEGER NOT NULL,"
-            "    length_m    DOUBLE,"
-            "    dt_ini      TEXT,"
-            "    dt_end      TEXT,"
-            "    duration_s  DOUBLE,"
-            "    h3_12_ini   INTEGER,"
-            "    h3_12_end   INTEGER"
-            ");" };
-            conn.execute(sql, [])
-        } else {
-            Ok(0)
+        match tx.commit().await {
+            Ok(_) => Ok(SqliteQueryResult::default()),
+            Err(e) => Err(e),
         }
     }
 
-    pub fn insert_trajectories(&self) -> Result<usize> {
-        let conn = self.connect()?;
+    pub async fn create_trajectory_table(&self) -> Result<SqliteQueryResult, Error> {
+        let conn = self.connect().await?;
 
-        self.create_trajectory_table()?;
+        conn.execute("DROP TABLE IF EXISTS main.trajectory;").await?;
+
+        let sql = text_block! {
+        "CREATE TABLE IF NOT EXISTS main.trajectory ("
+        "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "    vehicle_id  INTEGER NOT NULL,"
+        "    trip_id     INTEGER NOT NULL,"
+        "    length_m    DOUBLE,"
+        "    dt_ini      TEXT,"
+        "    dt_end      TEXT,"
+        "    duration_s  DOUBLE,"
+        "    h3_12_ini   INTEGER,"
+        "    h3_12_end   INTEGER"
+        ");" };
+        conn.execute(sql).await
+    }
+
+    pub async fn insert_trajectories(&self) -> Result<SqliteQueryResult, Error> {
+        let conn = self.connect().await?;
+
+        self.create_trajectory_table().await?;
 
         let sql = text_block! {
             "INSERT INTO trajectory (vehicle_id, trip_id)"
             "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
         };
-        conn.execute(sql, [])
+        conn.execute(sql).await
     }
 
-    pub fn get_trajectory_ids(&self) -> Result<Vec<i64>> {
-        let conn = self.connect()?;
+    pub async fn get_trajectory_ids(&self) -> Result<Vec<SqliteRow>, Error> {
+        let conn = self.connect().await?;
         let sql = text_block! {
             "SELECT traj_id FROM trajectory"
         };
-        let mut stmt = conn.prepare(sql)?;
-        let ids = stmt.query_map([], |row| row.get(0))?;
-        let ids: Result<Vec<i64>> = ids.collect();
-        ids
+        sqlx::query(sql).fetch_all(&conn).await
     }
 
-    pub fn get_trajectory_points(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>> {
-        let conn = self.connect()?;
+    pub async fn get_trajectory_points(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>, Error> {
+        let conn = self.connect().await?;
         let sql = text_block! {
             "select     s.signal_id"
             ",          s.vehicle_id"
@@ -240,23 +264,23 @@ impl EveDb {
             "inner join trajectory t on s.trip_id = t.trip_id"
             "where      t.traj_id = ?1"
         };
-        let mut stmt = conn.prepare(sql)?;
-        let points = stmt.query_map([trajectory_id], |row| {
-            Ok(TrajectoryPoint {
-                signal_id: row.get(0)?,
-                vehicle_id: row.get(1)?,
-                day_num: row.get(2)?,
-                time_stamp: row.get(3)?,
-                latitude: row.get(4)?,
-                longitude: row.get(5)?,
-            })
-        });
-
-        Ok(points?.collect::<Result<Vec<_>>>()?)
+        sqlx::query(sql)
+            .bind(trajectory_id)
+            .fetch_all(&conn).await
+            .map(|rows|
+                rows.into_iter().map(|row| TrajectoryPoint {
+                    signal_id: row.get(0),
+                    vehicle_id: row.get(1),
+                    day_num: row.get(2),
+                    time_stamp: row.get(3),
+                    latitude: row.get(4),
+                    longitude: row.get(5),
+                }).collect::<Vec<_>>()
+            )
     }
 
-    pub fn update_trajectory(&self, trajectory: &TrajectoryUpdate) -> Result<usize> {
-        let conn = self.connect()?;
+    pub async fn update_trajectory(&self, trajectory: &TrajectoryUpdate) -> Result<SqliteRow, Error> {
+        let conn = self.connect().await?;
         let sql = text_block! {
             "UPDATE main.trajectory"
             "SET    length_m = ?1"
@@ -267,35 +291,32 @@ impl EveDb {
             ",      h3_12_end = ?6"
             "WHERE  traj_id = ?7;"
         };
-        conn.execute(
-            sql,
-            params![
-                trajectory.length_m,
-                trajectory.dt_ini,
-                trajectory.dt_end,
-                trajectory.duration_s,
-                trajectory.h3_12_ini,
-                trajectory.h3_12_end,
-                trajectory.traj_id,
-            ],
-        )
+        sqlx::query(sql)
+            .bind(trajectory.length_m)
+            .bind(&trajectory.dt_ini)
+            .bind(&trajectory.dt_end)
+            .bind(trajectory.duration_s)
+            .bind(trajectory.h3_12_ini as i64)
+            .bind(trajectory.h3_12_end as i64)
+            .bind(trajectory.traj_id)
+            .fetch_one(&conn)
+            .await
     }
 
-    pub fn create_node_table(&self) -> Result<usize> {
-        let conn = self.connect()?;
-        if !conn.table_exists(None, "main.trajectory")? {
-            let sql = text_block! {
-            "CREATE TABLE IF NOT EXISTS main.node ("
-            "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "    traj_id         INTEGER NOT NULL,"
-            "    latitude        DOUBLE,"
-            "    longitude       DOUBLE,"
-            "    h3_12           INTEGER,"
-            "    match_error     TEXT"
-            ");" };
-            conn.execute(sql, [])
-        } else {
-            Ok(0)
-        }
+    pub async fn create_node_table(&self) -> Result<SqliteQueryResult, Error> {
+        let conn = self.connect().await?;
+
+        conn.execute("DROP TABLE IF EXISTS main.node;").await?;
+        let sql = text_block! {
+        "CREATE TABLE IF NOT EXISTS main.node ("
+        "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "    traj_id         INTEGER NOT NULL,"
+        "    latitude        DOUBLE,"
+        "    longitude       DOUBLE,"
+        "    h3_12           INTEGER,"
+        "    match_error     TEXT"
+        ");" };
+
+        conn.execute(sql).await
     }
 }

@@ -32,11 +32,9 @@ fn get_signal_data(cli: &Cli, data_filename: &str) -> String {
     csv
 }
 
-pub fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
+pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
     let mut csv = get_signal_data(cli, data_file);
     let db = EveDb::new(&cli.db_path);
-    let mut connection = db.connect()?;
-    let tx = connection.transaction()?;
 
     // Replace "nan" and ';' with null
     csv = csv.replace("nan", "");
@@ -45,24 +43,12 @@ pub fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
     let mut reader = csv::Reader::from_reader(csv.as_bytes());
     let mut insert_result: anyhow::Result<()> = Ok(());
 
-    for row in reader.deserialize() {
-        let signal: CsvSignal = row.unwrap();
-        insert_result = db.insert_signal(&tx, &signal);
-        match &insert_result {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("Error inserting signal: {}", e);
-                break;
-            }
+    for row in reader.deserialize::<CsvSignal>() {
+        if let Ok(signal) = row {
+            
+        } else {
+            eprintln!("Failed to deserialize CSV row")
         }
     }
-    match insert_result {
-        Ok(_) => {
-            tx.commit()?;
-        }
-        Err(_) => {
-            tx.rollback()?;
-        }
-    }
-    insert_result
+    Ok(())
 }
