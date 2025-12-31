@@ -23,5 +23,5 @@ podman-run:
 build:
 	cargo run --package evedb --bin evedb -- \
 	--repo-path ~/data/eved/repo \
-	--db-path /Users/joaofig/data/eved/db/eved.db \
+	--db-path ~/data/eved/db/eved.db \
 	--verbose build --no-clean --no-clone

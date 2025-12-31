@@ -1,12 +1,12 @@
-use std::result::Result;
 use crate::db::api::SqliteDb;
 use crate::models::signal::CsvSignal;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use sqlx::{SqlitePool, Sqlite, Pool, Error, Executor, Row};
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
+use sqlx::{Error, Executor, Pool, Row, Sqlite, SqlitePool, Transaction};
+use std::result::Result;
 use text_block_macros::text_block;
 
 pub struct EveDb {
@@ -25,15 +25,16 @@ impl EveDb {
 
     pub async fn create_vehicle_table(&self) -> Result<SqliteQueryResult, Error> {
         let try_conn = self.connect().await;
-        
+
         let conn = match try_conn {
             Err(e) => return Err(e),
             Ok(conn) => conn,
         };
-        
-        conn.execute("DROP TABLE IF EXISTS vehicle;").await
+
+        conn.execute("DROP TABLE IF EXISTS vehicle;")
+            .await
             .expect("Failed to drop vehicle table");
-        
+
         let sql = "
             CREATE TABLE IF NOT EXISTS vehicle (
                 vehicle_id    INTEGER primary key AUTOINCREMENT,
@@ -55,7 +56,8 @@ impl EveDb {
             Ok(conn) => conn,
         };
 
-        conn.execute("DROP TABLE IF EXISTS signal;").await
+        conn.execute("DROP TABLE IF EXISTS signal;")
+            .await
             .expect("Failed to drop signal table");
         let sql = text_block! {
         "create table if not exists signal ("
@@ -99,20 +101,30 @@ impl EveDb {
         conn.execute(sql).await
     }
 
-    pub async fn insert_signals(&self, signals: &Vec<CsvSignal>) -> Result<SqliteQueryResult, Error> {
+    pub async fn insert_signals(
+        &self,
+        signals: &Vec<CsvSignal>,
+    ) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
 
-        conn.begin().await?;
+        sqlx::query("PRAGMA synchronous = OFF")
+            .execute(&conn)
+            .await?;
+        sqlx::query("PRAGMA journal_mode = MEMORY")
+            .execute(&conn)
+            .await?;
+
+        let mut tx = conn.begin().await?;
         for signal in signals.iter() {
-            self.insert_signal(&conn, signal).await?;
+            self.insert_signal(&mut tx, signal).await?;
         }
-        conn.close().await;
+        tx.commit().await?;
         Ok(SqliteQueryResult::default())
     }
 
     pub async fn insert_signal(
         &self,
-        conn: &Pool<Sqlite>,
+        tx: &mut Transaction<'_, Sqlite>,
         signal: &CsvSignal,
     ) -> Result<SqliteQueryResult, Error> {
         let sql = text_block! {
@@ -170,7 +182,7 @@ impl EveDb {
             .bind(signal.bus_stop.map(|f| f as i64))
             .bind(signal.focus_points.clone())
             .bind(index)
-            .execute(conn)
+            .execute(&mut **tx)
             .await
     }
 
@@ -180,7 +192,10 @@ impl EveDb {
         conn.execute(sql).await
     }
 
-    pub async fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<SqliteQueryResult, Error> {
+    pub async fn insert_vehicles(
+        &self,
+        vehicles: Vec<Vehicle>,
+    ) -> Result<SqliteQueryResult, Error> {
         let sql = "
         INSERT INTO vehicle (
             vehicle_id,
@@ -252,7 +267,10 @@ impl EveDb {
         sqlx::query(sql).fetch_all(&conn).await
     }
 
-    pub async fn get_trajectory_points(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>, Error> {
+    pub async fn get_trajectory_points(
+        &self,
+        trajectory_id: i64,
+    ) -> Result<Vec<TrajectoryPoint>, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
             "select     s.signal_id"
@@ -267,20 +285,26 @@ impl EveDb {
         };
         sqlx::query(sql)
             .bind(trajectory_id)
-            .fetch_all(&conn).await
-            .map(|rows|
-                rows.into_iter().map(|row| TrajectoryPoint {
-                    signal_id: row.get(0),
-                    vehicle_id: row.get(1),
-                    day_num: row.get(2),
-                    time_stamp: row.get(3),
-                    latitude: row.get(4),
-                    longitude: row.get(5),
-                }).collect::<Vec<_>>()
-            )
+            .fetch_all(&conn)
+            .await
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| TrajectoryPoint {
+                        signal_id: row.get(0),
+                        vehicle_id: row.get(1),
+                        day_num: row.get(2),
+                        time_stamp: row.get(3),
+                        latitude: row.get(4),
+                        longitude: row.get(5),
+                    })
+                    .collect::<Vec<_>>()
+            })
     }
 
-    pub async fn update_trajectory(&self, trajectory: &TrajectoryUpdate) -> Result<SqliteRow, Error> {
+    pub async fn update_trajectory(
+        &self,
+        trajectory: &TrajectoryUpdate,
+    ) -> Result<SqliteRow, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
             "UPDATE trajectory"
