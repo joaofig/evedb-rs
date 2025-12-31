@@ -259,6 +259,36 @@ impl EveDb {
         conn.execute(sql).await
     }
 
+    pub async fn update_trajectories(&self, updates: &Vec<TrajectoryUpdate>) -> Result<(), Error> {
+        let conn = self.connect().await?;
+        let mut tx = conn.begin().await?;
+        let sql: String = String::from(
+            "
+            UPDATE      trajectory
+            SET         length_m = ?
+            ,           duration_s = ?
+            ,           dt_ini = ?
+            ,           dt_end = ?
+            ,           h3_12_ini = ?
+            ,           h3_12_end = ?
+            WHERE       traj_id = ?
+            ",
+        );
+
+        for update in updates.iter().progress() {
+            sqlx::query(&sql)
+                .bind(update.length_m)
+                .bind(update.duration_s)
+                .bind(&update.dt_ini)
+                .bind(&update.dt_end)
+                .bind(update.h3_12_ini as i64)
+                .bind(update.h3_12_end as i64)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await
+    }
+
     pub async fn get_trajectory_ids(&self) -> Result<Vec<SqliteRow>, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
