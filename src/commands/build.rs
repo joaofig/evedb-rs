@@ -137,10 +137,11 @@ async fn build_trajectories(cli: &Cli) {
         );
     }
 
-    if cli.verbose {
-        println!("Updating trajectory records")
-    }
+
     let updates = get_trajectory_updates(&db).await;
+    if cli.verbose {
+        println!("Updating {} trajectory records", updates.len())
+    }
     match db.update_trajectories(&updates).await {
         Ok(_) => {}
         Err(e) => panic!("Failed to update trajectory records {}", e),

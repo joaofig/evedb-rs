@@ -98,7 +98,10 @@ impl EveDb {
         "   bus_stop           INTEGER,"
         "   focus_points       TEXT,"
         "   h3_12              INTEGER);"};
-        conn.execute(sql).await
+        conn.execute(sql).await?;
+
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);").await?;
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
     }
 
     pub async fn insert_signals(
@@ -283,6 +286,7 @@ impl EveDb {
                 .bind(&update.dt_end)
                 .bind(update.h3_12_ini as i64)
                 .bind(update.h3_12_end as i64)
+                .bind(update.traj_id)
                 .execute(&mut *tx)
                 .await?;
         }
