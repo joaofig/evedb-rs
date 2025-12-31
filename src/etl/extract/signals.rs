@@ -4,6 +4,8 @@ use crate::models::signal::CsvSignal;
 use std::fs;
 use std::io::Read;
 
+const BUFFER_SIZE: usize = 10000;
+
 pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
     let filename = std::path::Path::new(&zip_path);
@@ -41,14 +43,23 @@ pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
     csv = csv.replace(";", "");
 
     let mut reader = csv::Reader::from_reader(csv.as_bytes());
-    let mut insert_result: anyhow::Result<()> = Ok(());
 
+    let mut signals: Vec<CsvSignal> = Vec::with_capacity(BUFFER_SIZE);
     for row in reader.deserialize::<CsvSignal>() {
         if let Ok(signal) = row {
-            
+            signals.push(signal);
+            if signals.len() == BUFFER_SIZE {
+                db.insert_signals(&signals).await?;
+                signals.clear();
+            }
         } else {
             eprintln!("Failed to deserialize CSV row")
         }
     }
-    Ok(())
+
+    let result = db.insert_signals(&signals).await;
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(anyhow::Error::from(e)),
+    }
 }

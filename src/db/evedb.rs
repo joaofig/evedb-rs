@@ -31,11 +31,11 @@ impl EveDb {
             Ok(conn) => conn,
         };
         
-        conn.execute("DROP TABLE IF EXISTS main.vehicle;").await
+        conn.execute("DROP TABLE IF EXISTS vehicle;").await
             .expect("Failed to drop vehicle table");
         
         let sql = "
-            CREATE TABLE IF NOT EXISTS main.vehicle (
+            CREATE TABLE IF NOT EXISTS vehicle (
                 vehicle_id    INTEGER primary key AUTOINCREMENT,
                 vehicle_type  TEXT,
                 vehicle_class TEXT,
@@ -55,10 +55,10 @@ impl EveDb {
             Ok(conn) => conn,
         };
 
-        conn.execute("DROP TABLE IF EXISTS main.signal;").await
+        conn.execute("DROP TABLE IF EXISTS signal;").await
             .expect("Failed to drop signal table");
         let sql = text_block! {
-        "create table if not exists main.signal ("
+        "create table if not exists signal ("
         "   signal_id          INTEGER primary key AUTOINCREMENT,"
         "   day_num            DOUBLE  not null,"
         "   vehicle_id         INTEGER not null,"
@@ -106,6 +106,7 @@ impl EveDb {
         for signal in signals.iter() {
             self.insert_signal(&conn, signal).await?;
         }
+        conn.close().await;
         Ok(SqliteQueryResult::default())
     }
 
@@ -115,7 +116,7 @@ impl EveDb {
         signal: &CsvSignal,
     ) -> Result<SqliteQueryResult, Error> {
         let sql = text_block! {
-            "INSERT INTO main.signal ("
+            "INSERT INTO signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
             "   longitude, speed, maf, rpm, abs_load, oat, fuel_rate, "
             "   ac_power_kw, ac_power_w, heater_power_w, hv_bat_current, "
@@ -175,13 +176,13 @@ impl EveDb {
 
     pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
-        let sql = "CREATE INDEX IF NOT EXISTS signal_h3_idx ON main.signal (h3_12);";
+        let sql = "CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);";
         conn.execute(sql).await
     }
 
     pub async fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<SqliteQueryResult, Error> {
         let sql = "
-        INSERT INTO main.vehicle (
+        INSERT INTO vehicle (
             vehicle_id,
             vehicle_type,
             vehicle_class,
@@ -214,7 +215,7 @@ impl EveDb {
     pub async fn create_trajectory_table(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
 
-        conn.execute("DROP TABLE IF EXISTS main.trajectory;").await?;
+        conn.execute("DROP TABLE IF EXISTS trajectory;").await?;
 
         let sql = text_block! {
         "CREATE TABLE IF NOT EXISTS main.trajectory ("
@@ -282,7 +283,7 @@ impl EveDb {
     pub async fn update_trajectory(&self, trajectory: &TrajectoryUpdate) -> Result<SqliteRow, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
-            "UPDATE main.trajectory"
+            "UPDATE trajectory"
             "SET    length_m = ?1"
             ",      dt_ini = ?2"
             ",      dt_end = ?3"
@@ -308,7 +309,7 @@ impl EveDb {
 
         conn.execute("DROP TABLE IF EXISTS main.node;").await?;
         let sql = text_block! {
-        "CREATE TABLE IF NOT EXISTS main.node ("
+        "CREATE TABLE IF NOT EXISTS node ("
         "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
         "    traj_id         INTEGER NOT NULL,"
         "    latitude        DOUBLE,"

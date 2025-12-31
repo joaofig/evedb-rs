@@ -94,78 +94,38 @@ async fn build_signals(cli: &Cli) {
 //     }
 // }
 
-// async fn build_trajectories(cli: &Cli) {
-//     let db: EveDb = EveDb::new(&cli.db_path);
-//     let stream = trajectory_updates(&db);
-//     let sql: String = String::from(
-//         "
-//             UPDATE      trajectory
-//             SET         length_m = ?
-//             ,           duration_s = ?
-//             ,           dt_ini = ?
-//             ,           dt_end = ?
-//             ,           h3_12_ini = ?
-//             ,           h3_12_end = ?
-//             WHERE       traj_id = ?
-//             ",
-//     );
-//
-//     if cli.verbose {
-//         println!("Creating the trajectory table")
-//     }
-//
-//     pin_mut!(stream);
-//
-//     let result = db.create_trajectory_table();
-//     if result.is_err() {
-//         panic!("Failed to create trajectory table {}", result.err().unwrap());
-//     }
-//
-//     if cli.verbose {
-//         println!("Inserting trajectory records")
-//     }
-//     let result = db.insert_trajectories();
-//     if result.is_err() {
-//         panic!("Failed to insert trajectory records {}", result.err().unwrap());
-//     }
-//
-//     let try_conn = db.connect();
-//     match try_conn {
-//         Ok(mut conn) => {
-//             let try_tx = conn.transaction();
-//
-//             match try_tx {
-//                 Ok(tx) => {
-//                     while let Some(update) = stream.next().await {
-//                         let result = tx.execute(
-//                             &sql,
-//                             params![
-//                                 update.length_m,
-//                                 update.dt_ini,
-//                                 update.dt_end,
-//                                 update.duration_s,
-//                                 update.h3_12_ini,
-//                                 update.traj_id,
-//                             ],
-//                         );
-//                         if result.is_err() {
-//                             tx.rollback().unwrap_or(());
-//                             panic!(
-//                                 "Failed to insert trajectory record {}",
-//                                 result.err().unwrap()
-//                             );
-//                         }
-//                     }
-//                     tx.commit().unwrap_or(());
-//                 }
-//                 Err(e) => {
-//                     panic!("Failed to start transaction {}", e)
-//                 }
-//             }
-//         }
-//         Err(e) => panic!("Failed to connect to the database {}", e),
-//     }
-// }
+async fn build_trajectories(cli: &Cli) {
+    let db: EveDb = EveDb::new(&cli.db_path);
+    let sql: String = String::from(
+        "
+            UPDATE      trajectory
+            SET         length_m = ?
+            ,           duration_s = ?
+            ,           dt_ini = ?
+            ,           dt_end = ?
+            ,           h3_12_ini = ?
+            ,           h3_12_end = ?
+            WHERE       traj_id = ?
+            ",
+    );
+
+    if cli.verbose {
+        println!("Creating the trajectory table")
+    }
+
+    let result = db.create_trajectory_table().await;
+    if result.is_err() {
+        panic!("Failed to create trajectory table {}", result.err().unwrap());
+    }
+
+    if cli.verbose {
+        println!("Inserting trajectory records")
+    }
+    let result = db.insert_trajectories().await;
+    if result.is_err() {
+        panic!("Failed to insert trajectory records {}", result.err().unwrap());
+    }
+}
 
 pub async fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     if !args.no_clone {
@@ -174,7 +134,7 @@ pub async fn build_database(cli: &Cli, args: &BuildCommandArgs) {
 
     build_vehicles(cli).await;
     build_signals(cli).await;
-    // build_trajectories(cli).await;
+    build_trajectories(cli).await;
 
     if !args.no_clean {
         clean_data(cli);
