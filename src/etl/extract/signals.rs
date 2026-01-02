@@ -4,7 +4,7 @@ use crate::models::signal::CsvSignal;
 use std::fs;
 use std::io::Read;
 
-const BUFFER_SIZE: usize = 10000;
+const BUFFER_SIZE: usize = 500000;
 
 pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
