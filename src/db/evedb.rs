@@ -5,7 +5,7 @@ use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
-use sqlx::{Error, Executor, Pool, Row, Sqlite, SqlitePool, Transaction};
+use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
 use text_block_macros::text_block;
 
@@ -98,10 +98,7 @@ impl EveDb {
         "   bus_stop           INTEGER,"
         "   focus_points       TEXT,"
         "   h3_12              INTEGER);"};
-        conn.execute(sql).await?;
-
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);").await?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
+        conn.execute(sql).await
     }
 
     pub async fn insert_signals(
@@ -191,8 +188,8 @@ impl EveDb {
 
     pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
-        let sql = "CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);";
-        conn.execute(sql).await
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);").await?;
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
     }
 
     pub async fn insert_vehicles(
