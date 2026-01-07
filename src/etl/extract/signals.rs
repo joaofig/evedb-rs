@@ -21,21 +21,21 @@ pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     filenames
 }
 
-fn get_signal_data(cli: &Cli, data_filename: &str) -> String {
+fn get_signal_data(cli: &Cli, data_filename: &str) -> anyhow::Result<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
     let filename = std::path::Path::new(&zip_path);
-    let file = fs::File::open(&filename).unwrap();
-    let mut archive = zip::ZipArchive::new(file).unwrap();
+    let file = fs::File::open(&filename)?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
-    let mut zip_file = archive.by_name(data_filename).unwrap();
+    let mut zip_file = archive.by_name(data_filename)?;
 
     let mut csv = String::new();
-    zip_file.read_to_string(&mut csv).unwrap();
-    csv
+    zip_file.read_to_string(&mut csv)?;
+    Ok(csv)
 }
 
 pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
-    let mut csv = get_signal_data(cli, data_file);
+    let mut csv = get_signal_data(cli, data_file)?;
     let db = EveDb::new(&cli.db_path);
 
     // Replace "nan" and ';' with null
@@ -44,18 +44,10 @@ pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
 
     let mut reader = csv::Reader::from_reader(csv.as_bytes());
 
-    let mut signals: Vec<CsvSignal> = Vec::with_capacity(BUFFER_SIZE);
-    for row in reader.deserialize::<CsvSignal>() {
-        if let Ok(signal) = row {
-            signals.push(signal);
-            if signals.len() == BUFFER_SIZE {
-                db.insert_signals(&signals).await?;
-                signals.clear();
-            }
-        } else {
-            eprintln!("Failed to deserialize CSV row")
-        }
-    }
+    let signals: Vec<CsvSignal> = reader
+        .deserialize::<CsvSignal>()
+        .map(|r| r.unwrap())
+        .collect();
 
     let result = db.insert_signals(&signals).await;
     match result {
