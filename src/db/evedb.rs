@@ -7,6 +7,7 @@ use indicatif::ProgressIterator;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
+use csv::DeserializeRecordsIter;
 use text_block_macros::text_block;
 
 pub struct EveDb {
@@ -103,7 +104,7 @@ impl EveDb {
 
     pub async fn insert_signals(
         &self,
-        signals: &Vec<CsvSignal>,
+        signals: DeserializeRecordsIter<'_, &[u8], CsvSignal>,
     ) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
 
@@ -115,8 +116,10 @@ impl EveDb {
             .await?;
 
         let mut tx = conn.begin().await?;
-        for signal in signals.iter() {
-            self.insert_signal(&mut tx, signal).await?;
+        for signal in signals.into_iter() {
+            if let Ok(s) = signal {
+                self.insert_signal(&mut tx, &s).await?;
+            }
         }
         tx.commit().await?;
         Ok(SqliteQueryResult::default())
@@ -176,7 +179,7 @@ impl EveDb {
             .bind(signal.match_longitude)
             .bind(signal.match_type)
             .bind(signal.speed_limit_type)
-            .bind(signal.speed_limit.clone())
+            .bind(&signal.speed_limit)
             .bind(signal.speed_limit_direct.map(|f| f as i64))
             .bind(signal.intersection.map(|f| f as i64))
             .bind(signal.bus_stop.map(|f| f as i64))
@@ -212,11 +215,11 @@ impl EveDb {
         for vehicle in vehicles.iter().progress() {
             let _ = sqlx::query(sql)
                 .bind(vehicle.vehicle_id)
-                .bind(vehicle.vehicle_type.clone())
-                .bind(vehicle.vehicle_class.clone())
-                .bind(vehicle.engine.clone())
-                .bind(vehicle.transmission.clone())
-                .bind(vehicle.drive_wheels.clone())
+                .bind(&vehicle.vehicle_type)
+                .bind(&vehicle.vehicle_class)
+                .bind(&vehicle.engine)
+                .bind(&vehicle.transmission)
+                .bind(&vehicle.drive_wheels)
                 .bind(vehicle.weight)
                 .execute(&conn)
                 .await?;

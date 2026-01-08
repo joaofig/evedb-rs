@@ -25,3 +25,21 @@ build:
 	--repo-path ~/data/eved/repo \
 	--db-path ~/data/eved/db/eved.db \
 	--verbose build --no-clean --no-clone
+
+build-r:
+	cargo run --release --package evedb --bin evedb -- \
+	--repo-path ~/data/eved/repo \
+	--db-path ~/data/eved/db/eved.db \
+	--verbose build --no-clean --no-clone
+
+flamegraph:
+	cargo flamegraph --package evedb --bin evedb -- \
+	--repo-path ~/data/eved/repo \
+	--db-path ~/data/eved/db/eved.db \
+	--verbose build --no-clean --no-clone
+
+samply:
+	samply record cargo run --release --package evedb --bin evedb -- \
+	  --repo-path ~/data/eved/repo \
+	  --db-path ~/data/eved/db/eved.db \
+	  --verbose build --no-clean --no-clone

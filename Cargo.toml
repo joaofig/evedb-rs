@@ -25,3 +25,4 @@ futures-util = "0.3.31"
 
 [profile.release]
 panic = 'abort'
+#debug = true
