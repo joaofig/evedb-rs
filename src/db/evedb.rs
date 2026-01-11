@@ -314,8 +314,9 @@ impl EveDb {
             ",          s.match_latitude"
             ",          s.match_longitude"
             "from       signal s"
-            "inner join trajectory t on s.trip_id = t.trip_id"
+            "inner join trajectory t on s.trip_id = t.trip_id and s.vehicle_id = t.vehicle_id"
             "where      t.traj_id = ?1"
+            "order by   s.time_stamp"
         };
         sqlx::query(sql)
             .bind(trajectory_id)

@@ -8,8 +8,9 @@ use crate::models::trajectory::TrajectoryUpdate;
 use crate::tools::lat_lng_to_h3_12;
 use chrono::{DateTime, Duration, TimeZone};
 use chrono_tz::America::Detroit;
-use geo::algorithm::line_measures::{Haversine, Length};
+use geo::{Haversine};
 use geo::geometry::LineString;
+use geo::line_measures::LengthMeasurable;
 use indicatif::ProgressIterator;
 use sqlx::Row;
 
@@ -74,11 +75,11 @@ async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
                 .map(|p| (p.longitude, p.latitude))
                 .collect::<Vec<_>>(),
         );
-        let length_m = Haversine.length(&line_string);
+        let length_m = line_string.length(&Haversine); // Haversine.length(&line_string);
         let day_num = (trajectory_points[0].day_num as i64) - 1;
         let last = trajectory_points.len() - 1;
         let dt_ini: DateTime<chrono_tz::Tz> =
-            base_dt + Duration::days(day_num) + Duration::seconds(trajectory_points[0].time_stamp);
+            base_dt + Duration::days(day_num) + Duration::milliseconds(trajectory_points[0].time_stamp);
         let dt_end: DateTime<chrono_tz::Tz> = base_dt
             + Duration::days(day_num)
             + Duration::seconds(trajectory_points[last].time_stamp);

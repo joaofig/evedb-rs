@@ -16,15 +16,3 @@ pub struct TrajectoryUpdate {
     pub h3_12_ini: u64,
     pub h3_12_end: u64,
 }
-
-// pub struct Trajectory {
-//     pub traj_id: i64,
-//     pub vehicle_id: i64,
-//     pub trip_id: i64,
-//     pub length_m: f64,
-//     pub dt_ini: String,
-//     pub dt_end: String,
-//     pub duration_s: f64,
-//     pub h3_12_ini: u64,
-//     pub h3_12_end: u64,
-// }
