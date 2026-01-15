@@ -4,20 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.53", features = ["derive"] }
-tokio = { version = "1.48.0", features = ["full"] }
+clap = { version = "4.5.54", features = ["derive"] }
+tokio = { version = "1.49.0", features = ["full"] }
 calamine = { version = "0.32.0", features = ["chrono"] }
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio", "tls-native-tls"] }
 anyhow = "1.0.100"
-zip = "6.0.0"
+zip = "7.1.0"
 text-block-macros = "0.2.0"
 csv = "1.4.0"
 serde = { version = "1.0.228", features = ["derive"] }
-h3o = "0.9.3"
+h3o = "0.9.4"
 indicatif = "0.18.3"
-reqwest = { version = "0.12.24", features = ["json", "gzip"]}
+reqwest = { version = "0.13.1", features = ["json", "gzip"]}
 geo = "0.32.0"
-chrono = "0.4.42"
+chrono = "0.4.43"
 chrono-tz = "0.10.4"
 async-stream = "0.3.6"
 futures-core = "0.3.31"

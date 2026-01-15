@@ -8,14 +8,8 @@ pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
     let filename = std::path::Path::new(&zip_path);
     let file = fs::File::open(&filename).unwrap();
-    let mut archive = zip::ZipArchive::new(file).unwrap();
-    let mut filenames: Vec<String> = Vec::new();
-
-    for i in 0..archive.len() {
-        let file = archive.by_index(i).unwrap();
-
-        filenames.push(file.name().to_string());
-    }
+    let archive = zip::ZipArchive::new(file).unwrap();
+    let filenames: Vec<String> = archive.file_names().map(|f| f.to_string()).collect();
     filenames
 }
 
@@ -44,11 +38,6 @@ pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
 
     let iterator = reader
         .deserialize::<CsvSignal>();
-    // 
-    // let signals: Vec<CsvSignal> = reader
-    //     .deserialize::<CsvSignal>()
-    //     .map(|r| r.unwrap())
-    //     .collect();
 
     let result = db.insert_signals(iterator).await;
     match result {
