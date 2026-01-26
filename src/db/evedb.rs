@@ -3,11 +3,11 @@ use crate::models::signal::CsvSignal;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
+use csv::DeserializeRecordsIter;
 use indicatif::ProgressIterator;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
-use csv::DeserializeRecordsIter;
 use text_block_macros::text_block;
 
 pub struct EveDb {
@@ -116,14 +116,34 @@ impl EveDb {
             .await?;
 
         let mut tx = conn.begin().await?;
-        for signal in signals.into_iter() {
-            if let Ok(s) = signal {
-                self.insert_signal(&mut tx, &s).await?;
-            }
+        for signal in signals.into_iter().flatten() {
+            self.insert_signal(&mut tx, &signal).await?;
         }
         tx.commit().await?;
         Ok(SqliteQueryResult::default())
     }
+
+    // pub async fn prepare_insert_signal(&self, conn: &mut SqlitePool,) {
+    //     let sql = text_block! {
+    //         "INSERT INTO signal ("
+    //         "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
+    //         "   longitude, speed, maf, rpm, abs_load, oat, fuel_rate, "
+    //         "   ac_power_kw, ac_power_w, heater_power_w, hv_bat_current, "
+    //         "   hv_bat_soc, hv_bat_volt, st_ftb_1, st_ftb_2, lt_ftb_1, "
+    //         "   lt_ftb_2, elevation, elevation_smooth, gradient, "
+    //         "   energy_consumption, match_latitude, match_longitude, "
+    //         "   match_type, speed_limit_type, speed_limit, speed_limit_direct, "
+    //         "   intersection, bus_stop, focus_points, h3_12) "
+    //         "VALUES "
+    //         "($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,"
+    //         " $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34,"
+    //         " $35, $36);"
+    //     };
+    //     let statement = sqlx::query(sql)
+    //         .persistent(false)
+    //         .prepare(conn)
+    //         .await;
+    // }
 
     pub async fn insert_signal(
         &self,
@@ -191,8 +211,10 @@ impl EveDb {
 
     pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);").await?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);")
+            .await?;
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);")
+            .await
     }
 
     pub async fn insert_vehicles(

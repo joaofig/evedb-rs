@@ -1,6 +1,6 @@
-use std::path::Path;
 use anyhow::{Context, Result};
-use sqlx::{SqlitePool, Sqlite, Pool, Error};
+use sqlx::{Error, Pool, Sqlite, SqlitePool};
+use std::path::Path;
 use tokio::fs;
 
 pub struct SqliteDb {
@@ -15,13 +15,16 @@ impl SqliteDb {
     }
 
     pub async fn connect(&self) -> std::result::Result<Pool<Sqlite>, Error> {
-        self.ensure_database().await.expect("Failed to create database file");
+        self.ensure_database()
+            .await
+            .expect("Failed to create database file");
         SqlitePool::connect(&self.path).await
     }
 
     async fn ensure_database(&self) -> Result<()> {
         // Extract the path from the SQLite URL (format: "sqlite:///path/to/db.sqlite")
-        let path_str = self.path
+        let path_str = self
+            .path
             .strip_prefix("sqlite://")
             .context("Invalid SQLite URL (expected 'sqlite:///path/to/db.sqlite')")?;
         let db_path = Path::new(path_str);
@@ -30,9 +33,9 @@ impl SqliteDb {
         if !db_path.exists() {
             // Create parent directories if they don't exist
             if let Some(parent_dir) = db_path.parent() {
-                fs::create_dir_all(parent_dir)
-                    .await
-                    .with_context(|| format!("Failed to create parent directories for {:?}", db_path))?;
+                fs::create_dir_all(parent_dir).await.with_context(|| {
+                    format!("Failed to create parent directories for {:?}", db_path)
+                })?;
             }
 
             fs::File::create(db_path)

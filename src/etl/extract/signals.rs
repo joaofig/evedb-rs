@@ -36,8 +36,7 @@ pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
 
     let mut reader = csv::Reader::from_reader(csv.as_bytes());
 
-    let iterator = reader
-        .deserialize::<CsvSignal>();
+    let iterator = reader.deserialize::<CsvSignal>();
 
     let result = db.insert_signals(iterator).await;
     match result {

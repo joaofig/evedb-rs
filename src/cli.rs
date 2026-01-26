@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Parser, Clone, Debug)]
 #[command(name = "MyApp")]
 #[command(version = "0.1.0", author = "João Paulo (JP) Figueira")]
 #[command(about = "Builds the eVED database from the original data sources")]
@@ -19,7 +19,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone, Debug)]
 pub enum Commands {
     /// builds the database
     #[command(about = "Builds the database")]
@@ -34,7 +34,7 @@ pub enum Commands {
     Clone,
 }
 
-#[derive(Args)]
+#[derive(Args, Clone, Debug)]
 pub struct BuildCommandArgs {
     #[arg(long, help = "Do not clone the repositories")]
     pub no_clone: bool,

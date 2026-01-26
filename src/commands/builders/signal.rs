@@ -1,7 +1,15 @@
-use indicatif::ProgressIterator;
 use crate::cli::Cli;
 use crate::db::evedb::EveDb;
 use crate::etl::extract::signals::{get_signal_filenames, insert_signals};
+use indicatif::ProgressIterator;
+
+async fn process_signal_file(cli: &Cli, filename: &str) {
+    let result = insert_signals(cli, filename).await;
+
+    if let Err(e) = result {
+        eprintln!("Failed to insert signals {}", e);
+    };
+}
 
 pub(crate) async fn build_signals(cli: &Cli) {
     if cli.verbose {
@@ -15,14 +23,9 @@ pub(crate) async fn build_signals(cli: &Cli) {
 
     let filenames = get_signal_filenames(cli);
     for filename in filenames.iter().progress() {
-        // println!("Processing {}", filename);
-
-        let result = insert_signals(cli, &filename).await;
-        if let Err(e) = result {
-            eprintln!("Failed to insert signals {}", e);
-            break;
-        }
+        process_signal_file(cli, filename).await;
     }
+
     db.create_signal_indexes()
         .await
         .expect("Failed to create signal indexes");
