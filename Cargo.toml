@@ -9,7 +9,7 @@ tokio = { version = "1.49.0", features = ["full"] }
 calamine = { version = "0.32.0", features = ["chrono"] }
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio", "tls-native-tls"] }
 anyhow = "1.0.100"
-zip = "7.1.0"
+zip = "6.0.0"
 text-block-macros = "0.2.0"
 csv = "1.4.0"
 serde = { version = "1.0.228", features = ["derive"] }
