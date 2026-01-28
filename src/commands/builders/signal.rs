@@ -13,7 +13,7 @@ pub(crate) async fn build_signals(cli: &Cli) {
         .await
         .expect("Failed to create signal table");
 
-    let filenames = get_signal_filenames(cli);
+    let filenames = get_signal_filenames(cli).unwrap();
     for filename in filenames.iter().progress() {
         // println!("Processing {}", filename);
 

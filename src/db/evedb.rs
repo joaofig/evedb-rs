@@ -116,7 +116,7 @@ impl EveDb {
             .await?;
 
         let mut tx = conn.begin().await?;
-        for signal in signals.into_iter() {
+        for signal in signals {
             if let Ok(s) = signal {
                 self.insert_signal(&mut tx, &s).await?;
             }

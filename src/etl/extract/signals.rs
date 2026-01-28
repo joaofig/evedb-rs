@@ -3,14 +3,15 @@ use crate::db::evedb::EveDb;
 use crate::models::signal::CsvSignal;
 use std::fs;
 use std::io::Read;
+use anyhow::Result;
 
-pub fn get_signal_filenames(cli: &Cli) -> Vec<String> {
+pub fn get_signal_filenames(cli: &Cli) -> Result<Vec<String>> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
     let filename = std::path::Path::new(&zip_path);
-    let file = fs::File::open(&filename).unwrap();
-    let archive = zip::ZipArchive::new(file).unwrap();
+    let file = fs::File::open(&filename)?;
+    let archive = zip::ZipArchive::new(file)?;
     let filenames: Vec<String> = archive.file_names().map(|f| f.to_string()).collect();
-    filenames
+    Ok(filenames)
 }
 
 fn get_signal_data(cli: &Cli, data_filename: &str) -> anyhow::Result<String> {
