@@ -43,3 +43,9 @@ samply:
 	  --repo-path ~/data/eved/repo \
 	  --db-path ~/data/eved/db/eved.db \
 	  --verbose build --no-clean --no-clone
+
+prune-docker:
+	docker system prune --all --force --volumes
+
+prune-podman:
+	podman system prune --all --force --volumes

@@ -1,4 +1,5 @@
 use crate::cli::{BuildCommandArgs, Cli};
+use crate::commands::builders::node::build_nodes;
 use crate::commands::builders::signal::build_signals;
 use crate::commands::builders::trajectory::build_trajectories;
 use crate::commands::builders::vehicle::build_vehicles;
@@ -13,6 +14,7 @@ pub async fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     build_vehicles(cli).await;
     build_signals(cli).await;
     build_trajectories(cli).await;
+    build_nodes(cli).await;
 
     if !args.no_clean {
         clean_data(cli);

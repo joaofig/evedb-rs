@@ -1,3 +1,6 @@
+use crate::cli::Cli;
+use crate::db::evedb::EveDb;
+
 /// Decode a polyline string.
 pub fn decode_polyline(polyline: &str, precision: f64) -> Vec<(f64, f64)> {
     let mut shape = Vec::new();
@@ -46,4 +49,22 @@ fn decode_polyline6() {
     let x = decode_polyline("e~epoA|jfpOiDaK", 1E6);
     let decoded = vec![(42.225139, -8.670911), (42.225224, -8.670718)];
     assert_eq!(x, decoded);
+}
+
+pub(crate) async fn build_nodes(cli: &Cli) {
+    let db: EveDb = EveDb::new(&cli.db_path);
+
+    if cli.verbose {
+        println!("Creating the node table")
+    }
+
+    let result = db.create_node_table().await;
+    if result.is_err() {
+        panic!(
+            "Failed to create node table {}",
+            result.err().unwrap()
+        );
+    }
+
+    let trajectory_ids = db.get_trajectory_ids().await.unwrap_or(vec![]);
 }
