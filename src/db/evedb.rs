@@ -387,6 +387,29 @@ impl EveDb {
 
         conn.execute(sql).await
     }
+    
+    pub async fn insert_match_error(
+        &self, 
+        trajectory_id: i64, 
+        match_error: &str
+    ) -> Result<(), Error> {
+        let conn = self.connect().await?;
+        let sql = text_block! {
+            "INSERT INTO node "
+            "    (traj_id, match_error) "
+            "VALUES "
+            "    (?1, ?2);"
+        };
+        let result = sqlx::query(sql)
+            .bind(trajectory_id)
+            .bind(match_error)
+            .execute(&conn)
+            .await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
 
     pub async fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
         let conn = self.connect().await?;

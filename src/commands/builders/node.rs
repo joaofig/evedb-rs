@@ -25,7 +25,6 @@ pub fn decode_polyline(polyline: &str, precision: f64) -> Vec<(f64, f64)> {
     while let Some((lat, lon)) = next_coordinates() {
         shape.push((lat as f64 / precision, lon as f64 / precision));
     }
-
     shape
 }
 
@@ -46,7 +45,6 @@ fn parse_polyline_coordinate(mut chars: impl Iterator<Item = char>, previous: i3
     } else {
         previous + (result >> 1)
     };
-
     Some(value)
 }
 
@@ -86,6 +84,10 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         );
     }
 
+    if cli.verbose {
+        println!("Populating the node table")
+    }
+
     let trajectory_ids = db.get_trajectory_ids().await.unwrap_or(vec![]);
     for trajectory_id in trajectory_ids {
         let trajectory = db.get_trajectory_points(trajectory_id).await.unwrap();
@@ -94,14 +96,20 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         let try_trip = map_match(locations).await;
         match try_trip {
             Ok(trip) => {
-                let points = trip.locations.iter().map(|pt| Node {
-                    trajectory_id,
-                    latitude: pt.latitude as f64,
-                    longitude: pt.longitude as f64,
-                    h3_12: lat_lng_to_h3_12(pt.latitude as f64, pt.longitude as f64) as i64,
-                    match_error: None,
-                });
-                db.insert_nodes(points.collect()).await.unwrap();
+                if let Some(warnings) = trip.warnings {
+                    let warnings = format!("{:?}", warnings);
+                    db.insert_match_error(trajectory_id, &warnings).await.unwrap();
+                    println!("Map matching warnings for trajectory {}: {:?}", trajectory_id, warnings);
+                } else {
+                    let points = trip.locations.iter().map(|pt| Node {
+                        trajectory_id,
+                        latitude: pt.latitude as f64,
+                        longitude: pt.longitude as f64,
+                        h3_12: lat_lng_to_h3_12(pt.latitude as f64, pt.longitude as f64) as i64,
+                        match_error: None,
+                    });
+                    db.insert_nodes(points.collect()).await.unwrap();
+                }
             }
             Err(e) => println!("{:?}", e)
         }

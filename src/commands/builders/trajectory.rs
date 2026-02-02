@@ -7,7 +7,6 @@ use chrono_tz::America::Detroit;
 use geo::line_measures::LengthMeasurable;
 use geo::{Haversine, LineString};
 use indicatif::ProgressIterator;
-use sqlx::Row;
 
 async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
