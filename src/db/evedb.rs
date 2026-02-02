@@ -9,6 +9,7 @@ use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
 use csv::DeserializeRecordsIter;
 use text_block_macros::text_block;
+use crate::models::node::Node;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -385,5 +386,32 @@ impl EveDb {
         ");" };
 
         conn.execute(sql).await
+    }
+
+    pub async fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
+        let conn = self.connect().await?;
+        let sql = text_block! {
+            "INSERT INTO node "
+            "    (traj_id, latitude, longitude, h3_12, match_error) "
+            "VALUES "
+            "    (?1, ?2, ?3, ?4, ?5);"
+        };
+        let mut tx = conn.begin().await?;
+        for node in nodes.iter().progress() {
+            let result = sqlx::query(sql)
+                .bind(node.trajectory_id)
+                .bind(node.latitude)
+                .bind(node.longitude)
+                .bind(node.h3_12)
+                .bind(&node.match_error)
+                .execute(&mut *tx)
+                .await;
+            if let Err(e) = result {
+                tx.rollback().await?;
+                return Err(e);
+            }
+        }
+        tx.commit().await?;
+        Ok(())
     }
 }

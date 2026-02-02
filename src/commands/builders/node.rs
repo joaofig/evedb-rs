@@ -1,9 +1,11 @@
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::Valhalla;
 use valhalla_client::route::{Location, Trip};
+use crate::tools::lat_lng_to_h3_12;
 use crate::cli::Cli;
 use crate::db::evedb::EveDb;
 use crate::models::trajectory::TrajectoryPoint;
+use crate::models::node::Node;
 
 /// Decode a polyline string.
 pub fn decode_polyline(polyline: &str, precision: f64) -> Vec<(f64, f64)> {
@@ -55,7 +57,7 @@ fn decode_polyline6() {
     assert_eq!(x, decoded);
 }
 
-async fn map_match(locations: Vec<Location>) -> anyhow::Result<Trip> {
+async fn map_match(locations: Vec<Location>) -> Result<Trip, valhalla_client::Error> {
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -66,9 +68,7 @@ async fn map_match(locations: Vec<Location>) -> anyhow::Result<Trip> {
         .trace_options(trace_options);
 
     let valhalla = Valhalla::default();
-    let try_trip = valhalla.trace_route(manifest).await;
-
-    Err(anyhow::anyhow!("Not implemented"))
+    valhalla.trace_route(manifest).await
 }
 
 pub(crate) async fn build_nodes(cli: &Cli) {
@@ -91,6 +91,19 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         let trajectory = db.get_trajectory_points(trajectory_id).await.unwrap();
         let locations: Vec<Location> =
             trajectory.iter().map(|p: &TrajectoryPoint| p.into()).collect();
-        // TODO: Call valhalla to get the node locations.
+        let try_trip = map_match(locations).await;
+        match try_trip {
+            Ok(trip) => {
+                let points = trip.locations.iter().map(|pt| Node {
+                    trajectory_id,
+                    latitude: pt.latitude as f64,
+                    longitude: pt.longitude as f64,
+                    h3_12: lat_lng_to_h3_12(pt.latitude as f64, pt.longitude as f64) as i64,
+                    match_error: None,
+                });
+                db.insert_nodes(points.collect()).await.unwrap();
+            }
+            Err(e) => println!("{:?}", e)
+        }
     }
 }
