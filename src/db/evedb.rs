@@ -262,7 +262,7 @@ impl EveDb {
         conn.execute(sql).await
     }
 
-    pub async fn update_trajectories(&self, updates: &Vec<TrajectoryUpdate>) -> Result<(), Error> {
+    pub async fn update_trajectories(&self, updates: &[TrajectoryUpdate]) -> Result<(), Error> {
         let conn = self.connect().await?;
         let mut tx = conn.begin().await?;
         let sql: String = String::from(
@@ -293,12 +293,19 @@ impl EveDb {
         tx.commit().await
     }
 
-    pub async fn get_trajectory_ids(&self) -> Result<Vec<SqliteRow>, Error> {
+    pub async fn get_trajectory_ids(&self) -> Result<Vec<i64>, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
             "SELECT traj_id FROM trajectory"
         };
-        sqlx::query(sql).fetch_all(&conn).await
+        let try_rows = sqlx::query(sql).fetch_all(&conn)
+            .await;
+        match try_rows {
+            Ok(rows) => {
+                Ok(rows.into_iter().map(|row| row.get(0)).collect::<Vec<_>>())
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn get_trajectory_points(

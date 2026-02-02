@@ -15,10 +15,9 @@ async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     let mut updates: Vec<TrajectoryUpdate> = Vec::with_capacity(trajectory_ids.len());
 
     // Now, generate the update trajectory records
-    for row in trajectory_ids.iter().progress() {
-        let trajectory_id: i64 = row.get(0);
+    for trajectory_id in trajectory_ids.iter().progress() {
         let trajectory_points = db
-            .get_trajectory_points(trajectory_id)
+            .get_trajectory_points(*trajectory_id)
             .await
             .unwrap_or(vec![]);
 
@@ -58,7 +57,7 @@ async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
                 / 1000.0,
             h3_12_ini: h3_ini,
             h3_12_end: h3_end,
-            traj_id: trajectory_id,
+            traj_id: *trajectory_id,
         };
         updates.push(update);
     }
