@@ -94,7 +94,12 @@ pub(crate) async fn build_trajectories(cli: &Cli) {
         println!("Updating {} trajectory records", updates.len())
     }
     match db.update_trajectories(&updates).await {
-        Ok(_) => {}
-        Err(e) => panic!("Failed to update trajectory records {}", e),
+        Ok(_) => {
+            match db.create_trajectory_indexes().await {
+                Ok(_) => println!("Trajectory table updated successfully"),
+                Err(e) => println!("Failed to create trajectory indexes {}", e),
+            }
+        }
+        Err(e) => println!("Failed to update trajectory records {}", e),
     }
 }

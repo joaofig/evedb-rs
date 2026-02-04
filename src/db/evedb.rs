@@ -4,7 +4,7 @@ use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
+use sqlx::sqlite::{SqliteQueryResult};
 use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
 use csv::DeserializeRecordsIter;
@@ -112,7 +112,7 @@ impl EveDb {
         sqlx::query("PRAGMA synchronous = OFF")
             .execute(&conn)
             .await?;
-        sqlx::query("PRAGMA journal_mode = MEMORY")
+        sqlx::query("PRAGMA journal_mode = WAL")
             .execute(&conn)
             .await?;
 
@@ -344,31 +344,14 @@ impl EveDb {
             })
     }
 
-    pub async fn update_trajectory(
-        &self,
-        trajectory: &TrajectoryUpdate,
-    ) -> Result<SqliteRow, Error> {
+    pub async fn create_trajectory_indexes(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
-        let sql = text_block! {
-            "UPDATE trajectory"
-            "SET    length_m = ?1"
-            ",      dt_ini = ?2"
-            ",      dt_end = ?3"
-            ",      duration_s = ?4"
-            ",      h3_12_ini = ?5"
-            ",      h3_12_end = ?6"
-            "WHERE  traj_id = ?7;"
-        };
-        sqlx::query(sql)
-            .bind(trajectory.length_m)
-            .bind(&trajectory.dt_ini)
-            .bind(&trajectory.dt_end)
-            .bind(trajectory.duration_s)
-            .bind(trajectory.h3_12_ini as i64)
-            .bind(trajectory.h3_12_end as i64)
-            .bind(trajectory.traj_id)
-            .fetch_one(&conn)
-            .await
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS traj_vehicle_idx ON trajectory (vehicle_id, trip_id);"
+        ).await?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS traj_h3_idx ON trajectory (h3_12_ini);"
+        ).await
     }
 
     pub async fn create_node_table(&self) -> Result<SqliteQueryResult, Error> {
@@ -413,20 +396,27 @@ impl EveDb {
 
     pub async fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
         let conn = self.connect().await?;
+
+        sqlx::query("PRAGMA synchronous = OFF")
+            .execute(&conn)
+            .await?;
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&conn)
+            .await?;
+
         let sql = text_block! {
             "INSERT INTO node "
-            "    (traj_id, latitude, longitude, h3_12, match_error) "
+            "    (traj_id, latitude, longitude, h3_12) "
             "VALUES "
-            "    (?1, ?2, ?3, ?4, ?5);"
+            "    (?1, ?2, ?3, ?4);"
         };
         let mut tx = conn.begin().await?;
-        for node in nodes.iter().progress() {
+        for node in nodes.iter() {
             let result = sqlx::query(sql)
                 .bind(node.trajectory_id)
                 .bind(node.latitude)
                 .bind(node.longitude)
                 .bind(node.h3_12)
-                .bind(&node.match_error)
                 .execute(&mut *tx)
                 .await;
             if let Err(e) = result {

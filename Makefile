@@ -26,6 +26,11 @@ build:
 	--db-path ~/data/eved/db/eved.db \
 	--verbose build --no-clean --no-clone
 
+match:
+	cargo run --package evedb --bin evedb -- \
+	--db-path ~/data/eved/db/eved.db \
+	--verbose match
+
 build-r:
 	cargo run --release --package evedb --bin evedb -- \
 	--repo-path ~/data/eved/repo \

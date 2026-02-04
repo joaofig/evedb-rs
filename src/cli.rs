@@ -25,6 +25,9 @@ pub enum Commands {
     #[command(about = "Builds the database")]
     Build(BuildCommandArgs),
 
+    #[command(about = "Map-matches the trajectories")]
+    Match,
+
     /// cleans the repositories folder
     #[command(about = "Cleans the repositories folder")]
     Clean,
