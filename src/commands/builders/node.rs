@@ -1,4 +1,4 @@
-use indicatif::ProgressIterator;
+use indicatif::{ProgressIterator};
 use sqlx::sqlite::SqliteQueryResult;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};

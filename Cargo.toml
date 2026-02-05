@@ -16,7 +16,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 h3o = "0.9.4"
 indicatif = "0.18.3"
-reqwest = { version = "0.13.1", features = ["json", "gzip"]}
 geo = "0.32.0"
 chrono = "0.4.43"
 chrono-tz = "0.10.4"
@@ -24,6 +23,7 @@ async-stream = "0.3.6"
 futures-core = "0.3.31"
 futures-util = "0.3.31"
 valhalla-client = "0.5.0"
+rayon = "1.11.0"
 
 [profile.release]
 panic = 'abort'

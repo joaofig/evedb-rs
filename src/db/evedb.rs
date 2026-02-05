@@ -192,7 +192,12 @@ impl EveDb {
 
     pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
         let conn = self.connect().await?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_trip_idx ON signal (trip_id);").await?;
+        conn.execute("
+        CREATE INDEX IF NOT EXISTS signal_vehicle_trip_idx ON signal (
+            vehicle_id ASC,
+            trip_id ASC,
+            time_stamp ASC
+        );").await?;
         conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
     }
 
@@ -315,16 +320,16 @@ impl EveDb {
     ) -> Result<Vec<TrajectoryPoint>, Error> {
         let conn = self.connect().await?;
         let sql = text_block! {
-            "select     s.signal_id"
-            ",          s.vehicle_id"
-            ",          s.day_num"
-            ",          s.time_stamp"
-            ",          s.match_latitude"
-            ",          s.match_longitude"
-            "from       signal s"
-            "inner join trajectory t on s.trip_id = t.trip_id and s.vehicle_id = t.vehicle_id"
-            "where      t.traj_id = ?1"
-            "order by   s.time_stamp"
+            "select     s.signal_id "
+            ",          s.vehicle_id "
+            ",          s.day_num "
+            ",          s.time_stamp "
+            ",          s.match_latitude "
+            ",          s.match_longitude "
+            "from       signal s "
+            "inner join trajectory t on s.vehicle_id = t.vehicle_id and  s.trip_id = t.trip_id "
+            "where      t.traj_id = ?1 "
+            "order by   s.time_stamp "
         };
         sqlx::query(sql)
             .bind(trajectory_id)
