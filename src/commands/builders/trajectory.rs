@@ -8,16 +8,15 @@ use geo::line_measures::LengthMeasurable;
 use geo::{Haversine, LineString};
 use indicatif::ProgressIterator;
 
-async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
+fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
-    let trajectory_ids = db.get_trajectory_ids().await.unwrap_or(vec![]);
+    let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     let mut updates: Vec<TrajectoryUpdate> = Vec::with_capacity(trajectory_ids.len());
 
     // Now, generate the update trajectory records
     for trajectory_id in trajectory_ids.iter().progress() {
         let trajectory_points = db
             .get_trajectory_points(*trajectory_id)
-            .await
             .unwrap_or(vec![]);
 
         if trajectory_points.len() < 2 {
@@ -63,14 +62,14 @@ async fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     updates
 }
 
-pub(crate) async fn build_trajectories(cli: &Cli) {
+pub(crate) fn build_trajectories(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
     if cli.verbose {
         println!("Creating the trajectory table")
     }
 
-    let result = db.create_trajectory_table().await;
+    let result = db.create_trajectory_table();
     if result.is_err() {
         panic!(
             "Failed to create trajectory table {}",
@@ -81,7 +80,7 @@ pub(crate) async fn build_trajectories(cli: &Cli) {
     if cli.verbose {
         println!("Inserting trajectory records")
     }
-    let result = db.insert_trajectories().await;
+    let result = db.insert_trajectories();
     if result.is_err() {
         panic!(
             "Failed to insert trajectory records {}",
@@ -89,13 +88,13 @@ pub(crate) async fn build_trajectories(cli: &Cli) {
         );
     }
 
-    let updates = get_trajectory_updates(&db).await;
+    let updates = get_trajectory_updates(&db);
     if cli.verbose {
         println!("Updating {} trajectory records", updates.len())
     }
-    match db.update_trajectories(&updates).await {
+    match db.update_trajectories(&updates) {
         Ok(_) => {
-            match db.create_trajectory_indexes().await {
+            match db.create_trajectory_indexes() {
                 Ok(_) => println!("Trajectory table updated successfully"),
                 Err(e) => println!("Failed to create trajectory indexes {}", e),
             }

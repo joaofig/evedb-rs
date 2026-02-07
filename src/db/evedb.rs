@@ -4,10 +4,9 @@ use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use sqlx::sqlite::{SqliteQueryResult};
-use sqlx::{Error, Executor, Pool, Row, Sqlite, Transaction};
 use std::result::Result;
 use csv::DeserializeRecordsIter;
+use rusqlite::{params, Connection, Error, Row, Transaction};
 use text_block_macros::text_block;
 use crate::models::node::Node;
 
@@ -21,21 +20,24 @@ impl EveDb {
         EveDb { db: database }
     }
 
-    pub async fn connect(&self) -> Result<Pool<Sqlite>, Error> {
-        self.db.connect().await
+    pub fn connect(&self) -> Result<Connection, Error> {
+        let conn = self.db.connect()?;
+        conn.execute("PRAGMA journal_mode=WAL", ())?;
+        conn.execute("PRAGMA synchronous=NORMAL", ())?;
+        conn.execute("PRAGMA cache_size=10000", ())?;
+        conn.execute("PRAGMA temp_store=MEMORY", ())?;
+        Ok(conn)
     }
 
-    pub async fn create_vehicle_table(&self) -> Result<SqliteQueryResult, Error> {
-        let try_conn = self.connect().await;
+    pub fn create_vehicle_table(&self) -> Result<usize, Error> {
+        let try_conn = self.connect();
 
         let conn = match try_conn {
             Err(e) => return Err(e),
             Ok(conn) => conn,
         };
 
-        conn.execute("DROP TABLE IF EXISTS vehicle;")
-            .await
-            .expect("Failed to drop vehicle table");
+        conn.execute("DROP TABLE IF EXISTS vehicle;", ())?;
 
         let sql = "
             CREATE TABLE IF NOT EXISTS vehicle (
@@ -47,20 +49,18 @@ impl EveDb {
                 drive_wheels  TEXT,
                 weight        INTEGER
             ) STRICT";
-        conn.execute(sql).await
+        conn.execute(sql, ())
     }
 
-    pub async fn create_signal_table(&self) -> Result<SqliteQueryResult, Error> {
-        let try_conn = self.connect().await;
+    pub fn create_signal_table(&self) -> Result<usize, Error> {
+        let try_conn = self.connect();
 
         let conn = match try_conn {
             Err(e) => return Err(e),
             Ok(conn) => conn,
         };
 
-        conn.execute("DROP TABLE IF EXISTS signal;")
-            .await
-            .expect("Failed to drop signal table");
+        conn.execute("DROP TABLE IF EXISTS signal;", ())?;
         let sql = text_block! {
         "create table if not exists signal ("
         "   signal_id          INTEGER primary key AUTOINCREMENT,"
@@ -100,37 +100,32 @@ impl EveDb {
         "   bus_stop           INTEGER,"
         "   focus_points       TEXT,"
         "   h3_12              INTEGER);"};
-        conn.execute(sql).await
+        conn.execute(sql, ())
     }
 
-    pub async fn insert_signals(
+    pub fn insert_signals(
         &self,
         signals: DeserializeRecordsIter<'_, &[u8], CsvSignal>,
-    ) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    ) -> anyhow::Result<usize> {
+        let mut conn = self.connect()?;
+        let mut counter: usize = 0;
 
-        sqlx::query("PRAGMA synchronous = OFF")
-            .execute(&conn)
-            .await?;
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(&conn)
-            .await?;
-
-        let mut tx = conn.begin().await?;
+        let mut tx = conn.transaction()?;
         for signal in signals {
             if let Ok(s) = signal {
-                self.insert_signal(&mut tx, &s).await?;
+                self.insert_signal(&mut tx, &s)?;
+                counter += 1;
             }
         }
-        tx.commit().await?;
-        Ok(SqliteQueryResult::default())
+        tx.commit()?;
+        Ok(counter)
     }
 
-    pub async fn insert_signal(
+    pub fn insert_signal(
         &self,
-        tx: &mut Transaction<'_, Sqlite>,
+        tx: &mut Transaction<'_>,
         signal: &CsvSignal,
-    ) -> Result<SqliteQueryResult, Error> {
+    ) -> Result<usize, Error> {
         let sql = text_block! {
             "INSERT INTO signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -148,63 +143,63 @@ impl EveDb {
         };
 
         let index: i64 = lat_lng_to_h3_12(signal.match_latitude, signal.match_longitude) as i64;
-
-        sqlx::query(sql)
-            .bind(signal.day_num as i64)
-            .bind(signal.vehicle_id as i64)
-            .bind(signal.trip_id as i64)
-            .bind(signal.time_stamp as i64)
-            .bind(signal.latitude)
-            .bind(signal.longitude)
-            .bind(signal.speed)
-            .bind(signal.maf)
-            .bind(signal.rpm)
-            .bind(signal.abs_load)
-            .bind(signal.oat)
-            .bind(signal.fuel_rate)
-            .bind(signal.ac_power_kw)
-            .bind(signal.ac_power_w)
-            .bind(signal.heater_power_w)
-            .bind(signal.hv_bat_current)
-            .bind(signal.hv_bat_soc)
-            .bind(signal.hv_bat_volt)
-            .bind(signal.st_ftb_1)
-            .bind(signal.st_ftb_2)
-            .bind(signal.lt_ftb_1)
-            .bind(signal.lt_ftb_2)
-            .bind(signal.elevation)
-            .bind(signal.elevation_smooth)
-            .bind(signal.gradient)
-            .bind(signal.energy_consumption)
-            .bind(signal.match_latitude)
-            .bind(signal.match_longitude)
-            .bind(signal.match_type)
-            .bind(signal.speed_limit_type)
-            .bind(&signal.speed_limit)
-            .bind(signal.speed_limit_direct.map(|f| f as i64))
-            .bind(signal.intersection.map(|f| f as i64))
-            .bind(signal.bus_stop.map(|f| f as i64))
-            .bind(signal.focus_points.clone())
-            .bind(index)
-            .execute(&mut **tx)
-            .await
+        let params = params!(
+            signal.day_num as i64,
+            signal.vehicle_id as i64,
+            signal.trip_id as i64,
+            signal.time_stamp as i64,
+            signal.latitude,
+            signal.longitude,
+            signal.speed,
+            signal.maf,
+            signal.rpm,
+            signal.abs_load,
+            signal.oat,
+            signal.fuel_rate,
+            signal.ac_power_kw,
+            signal.ac_power_w,
+            signal.heater_power_w,
+            signal.hv_bat_current,
+            signal.hv_bat_soc,
+            signal.hv_bat_volt,
+            signal.st_ftb_1,
+            signal.st_ftb_2,
+            signal.lt_ftb_1,
+            signal.lt_ftb_2,
+            signal.elevation,
+            signal.elevation_smooth,
+            signal.gradient,
+            signal.energy_consumption,
+            signal.match_latitude,
+            signal.match_longitude,
+            signal.match_type,
+            signal.speed_limit_type,
+            signal.speed_limit,
+            signal.speed_limit_direct,
+            signal.intersection,
+            signal.bus_stop,
+            signal.focus_points.clone(),
+            index,
+            );
+        tx.execute(sql, params)
     }
 
-    pub async fn create_signal_indexes(&self) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    pub fn create_signal_indexes(&self) -> Result<usize, Error> {
+        let conn = self.connect()?;
         conn.execute("
         CREATE INDEX IF NOT EXISTS signal_vehicle_trip_idx ON signal (
             vehicle_id ASC,
             trip_id ASC,
             time_stamp ASC
-        );").await?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);").await
+        );", ())?;
+        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);",
+                     ())
     }
 
-    pub async fn insert_vehicles(
+    pub fn insert_vehicles(
         &self,
         vehicles: Vec<Vehicle>,
-    ) -> Result<SqliteQueryResult, Error> {
+    ) -> Result<usize, Error> {
         let sql = "
         INSERT INTO vehicle (
             vehicle_id,
@@ -215,31 +210,29 @@ impl EveDb {
             drive_wheels,
             weight) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)";
 
-        let conn = self.connect().await?;
-        let tx = conn.begin().await?;
+        let mut conn = self.connect()?;
+        let tx = conn.transaction()?;
 
         for vehicle in vehicles.iter().progress() {
-            let _ = sqlx::query(sql)
-                .bind(vehicle.vehicle_id)
-                .bind(&vehicle.vehicle_type)
-                .bind(&vehicle.vehicle_class)
-                .bind(&vehicle.engine)
-                .bind(&vehicle.transmission)
-                .bind(&vehicle.drive_wheels)
-                .bind(vehicle.weight)
-                .execute(&conn)
-                .await?;
+            let params = params!(
+                vehicle.vehicle_id,
+                vehicle.vehicle_type,
+                vehicle.vehicle_class,
+                vehicle.engine,
+                vehicle.transmission,
+                vehicle.drive_wheels,
+                vehicle.weight
+            );
+            tx.execute(sql, params)?;
         }
-        match tx.commit().await {
-            Ok(_) => Ok(SqliteQueryResult::default()),
-            Err(e) => Err(e),
-        }
+        tx.commit()?;
+        Ok(vehicles.len())
     }
 
-    pub async fn create_trajectory_table(&self) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    pub fn create_trajectory_table(&self) -> Result<usize, Error> {
+        let conn = self.connect()?;
 
-        conn.execute("DROP TABLE IF EXISTS trajectory;").await?;
+        conn.execute("DROP TABLE IF EXISTS trajectory;", ())?;
 
         let sql = text_block! {
         "CREATE TABLE IF NOT EXISTS main.trajectory ("
@@ -253,24 +246,24 @@ impl EveDb {
         "    h3_12_ini   INTEGER,"
         "    h3_12_end   INTEGER"
         ");" };
-        conn.execute(sql).await
+        conn.execute(sql, ())
     }
 
-    pub async fn insert_trajectories(&self) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    pub fn insert_trajectories(&self) -> Result<usize, Error> {
+        let conn = self.connect()?;
 
-        self.create_trajectory_table().await?;
+        self.create_trajectory_table()?;
 
         let sql = text_block! {
             "INSERT INTO trajectory (vehicle_id, trip_id)"
             "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
         };
-        conn.execute(sql).await
+        conn.execute(sql, ())
     }
 
-    pub async fn update_trajectories(&self, updates: &[TrajectoryUpdate]) -> Result<(), Error> {
-        let conn = self.connect().await?;
-        let mut tx = conn.begin().await?;
+    pub fn update_trajectories(&self, updates: &[TrajectoryUpdate]) -> Result<(), Error> {
+        let mut conn = self.connect()?;
+        let tx = conn.transaction()?;
         let sql: String = String::from(
             "
             UPDATE      trajectory
@@ -285,40 +278,36 @@ impl EveDb {
         );
 
         for update in updates.iter().progress() {
-            sqlx::query(&sql)
-                .bind(update.length_m)
-                .bind(update.duration_s)
-                .bind(&update.dt_ini)
-                .bind(&update.dt_end)
-                .bind(update.h3_12_ini as i64)
-                .bind(update.h3_12_end as i64)
-                .bind(update.traj_id)
-                .execute(&mut *tx)
-                .await?;
+            let params = params!(
+                update.length_m,
+                update.duration_s,
+                update.dt_ini,
+                update.dt_end,
+                update.h3_12_ini as i64,
+                update.h3_12_end as i64,
+                update.traj_id
+            );
+            tx.execute(&sql, params)?;
         }
-        tx.commit().await
+        tx.commit()
     }
 
-    pub async fn get_trajectory_ids(&self) -> Result<Vec<i64>, Error> {
-        let conn = self.connect().await?;
+    pub fn get_trajectory_ids(&self) -> Result<Vec<i64>, Error> {
+        let conn = self.connect()?;
         let sql = text_block! {
             "SELECT traj_id FROM trajectory"
         };
-        let try_rows = sqlx::query(sql).fetch_all(&conn)
-            .await;
-        match try_rows {
-            Ok(rows) => {
-                Ok(rows.into_iter().map(|row| row.get(0)).collect::<Vec<_>>())
-            },
-            Err(e) => Err(e),
-        }
+        let mut stmt = conn.prepare(sql)?;
+        let traj_ids = stmt.query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<i64>, Error>>()?;
+        Ok(traj_ids)
     }
 
-    pub async fn get_trajectory_points(
+    pub fn get_trajectory_points(
         &self,
         trajectory_id: i64,
     ) -> Result<Vec<TrajectoryPoint>, Error> {
-        let conn = self.connect().await?;
+        let conn = self.connect()?;
         let sql = text_block! {
             "select     s.signal_id "
             ",          s.vehicle_id "
@@ -331,38 +320,37 @@ impl EveDb {
             "where      t.traj_id = ?1 "
             "order by   s.time_stamp "
         };
-        sqlx::query(sql)
-            .bind(trajectory_id)
-            .fetch_all(&conn)
-            .await
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|row| TrajectoryPoint {
-                        signal_id: row.get(0),
-                        vehicle_id: row.get(1),
-                        day_num: row.get(2),
-                        time_stamp: row.get(3),
-                        latitude: row.get(4),
-                        longitude: row.get(5),
-                    })
-                    .collect::<Vec<_>>()
+        let mut stmt = conn.prepare(sql)?;
+        let points = stmt.query_map([trajectory_id], |row: &Row| {
+            Ok(TrajectoryPoint {
+                signal_id: row.get(0)?,
+                vehicle_id: row.get(1)?,
+                day_num: row.get(2)?,
+                time_stamp: row.get(3)?,
+                latitude: row.get(4)?,
+                longitude: row.get(5)?,
             })
+        })?;
+        let results = points.collect::<Result<Vec<TrajectoryPoint>, Error>>()?;
+        Ok(results)
     }
 
-    pub async fn create_trajectory_indexes(&self) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    pub fn create_trajectory_indexes(&self) -> Result<usize, Error> {
+        let conn = self.connect()?;
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS traj_vehicle_idx ON trajectory (vehicle_id, trip_id);"
-        ).await?;
+            "CREATE INDEX IF NOT EXISTS traj_vehicle_idx ON trajectory (vehicle_id, trip_id);",
+            ()
+        )?;
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS traj_h3_idx ON trajectory (h3_12_ini);"
-        ).await
+            "CREATE INDEX IF NOT EXISTS traj_h3_idx ON trajectory (h3_12_ini);",
+            ()
+        )
     }
 
-    pub async fn create_node_table(&self) -> Result<SqliteQueryResult, Error> {
-        let conn = self.connect().await?;
+    pub fn create_node_table(&self) -> Result<usize, Error> {
+        let conn = self.connect()?;
 
-        conn.execute("DROP TABLE IF EXISTS main.node;").await?;
+        conn.execute("DROP TABLE IF EXISTS main.node;", ())?;
         let sql = text_block! {
         "CREATE TABLE IF NOT EXISTS node ("
         "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -373,41 +361,26 @@ impl EveDb {
         "    match_error     TEXT"
         ");" };
 
-        conn.execute(sql).await
+        conn.execute(sql, ())
     }
     
-    pub async fn insert_match_error(
+    pub fn insert_match_error(
         &self, 
         trajectory_id: i64, 
         match_error: &str
-    ) -> Result<(), Error> {
-        let conn = self.connect().await?;
+    ) -> Result<usize, Error> {
+        let conn = self.connect()?;
         let sql = text_block! {
             "INSERT INTO node "
             "    (traj_id, match_error) "
             "VALUES "
             "    (?1, ?2);"
         };
-        let result = sqlx::query(sql)
-            .bind(trajectory_id)
-            .bind(match_error)
-            .execute(&conn)
-            .await;
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+        conn.execute(sql, params!(trajectory_id, match_error))
     }
 
-    pub async fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
-        let conn = self.connect().await?;
-
-        sqlx::query("PRAGMA synchronous = OFF")
-            .execute(&conn)
-            .await?;
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(&conn)
-            .await?;
+    pub fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
+        let mut conn = self.connect()?;
 
         let sql = text_block! {
             "INSERT INTO node "
@@ -415,21 +388,14 @@ impl EveDb {
             "VALUES "
             "    (?1, ?2, ?3, ?4);"
         };
-        let mut tx = conn.begin().await?;
+        let tx = conn.transaction()?;
         for node in nodes.iter() {
-            let result = sqlx::query(sql)
-                .bind(node.trajectory_id)
-                .bind(node.latitude)
-                .bind(node.longitude)
-                .bind(node.h3_12)
-                .execute(&mut *tx)
-                .await;
-            if let Err(e) = result {
-                tx.rollback().await?;
-                return Err(e);
-            }
+            tx.execute(sql, params!(
+                node.trajectory_id,
+                node.latitude,
+                node.longitude,
+                node.h3_12))?;
         }
-        tx.commit().await?;
-        Ok(())
+        tx.commit()
     }
 }

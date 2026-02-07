@@ -14,7 +14,7 @@ pub fn get_signal_filenames(cli: &Cli) -> Result<Vec<String>> {
     Ok(filenames)
 }
 
-fn get_signal_data(cli: &Cli, data_filename: &str) -> anyhow::Result<String> {
+fn get_signal_data(cli: &Cli, data_filename: &str) -> Result<String> {
     let zip_path = format!("{}/eved/data/eVED.zip", cli.repo_path);
     let filename = std::path::Path::new(&zip_path);
     let file = fs::File::open(&filename)?;
@@ -27,7 +27,7 @@ fn get_signal_data(cli: &Cli, data_filename: &str) -> anyhow::Result<String> {
     Ok(csv)
 }
 
-pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
+pub fn insert_signals(cli: &Cli, data_file: &str) -> Result<usize> {
     let mut csv = get_signal_data(cli, data_file)?;
     let db = EveDb::new(&cli.db_path);
 
@@ -39,9 +39,5 @@ pub async fn insert_signals(cli: &Cli, data_file: &str) -> anyhow::Result<()> {
 
     let iterator = reader.deserialize::<CsvSignal>();
 
-    let result = db.insert_signals(iterator).await;
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(anyhow::Error::from(e)),
-    }
+    db.insert_signals(iterator)
 }

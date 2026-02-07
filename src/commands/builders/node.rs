@@ -1,5 +1,4 @@
 use indicatif::{ProgressIterator};
-use sqlx::sqlite::SqliteQueryResult;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::Valhalla;
@@ -32,7 +31,7 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         println!("Creating the node table")
     }
 
-    let result: Result<SqliteQueryResult, sqlx::Error> = db.create_node_table().await;
+    let result = db.create_node_table();
     if result.is_err() {
         panic!(
             "Failed to create node table {}",
@@ -44,9 +43,9 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         println!("Populating the node table")
     }
 
-    let trajectory_ids = db.get_trajectory_ids().await.unwrap_or(vec![]);
+    let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     for trajectory_id in trajectory_ids.iter().progress() {
-        let trajectory = db.get_trajectory_points(*trajectory_id).await.unwrap();
+        let trajectory = db.get_trajectory_points(*trajectory_id).unwrap();
         let locations: Vec<Location> =
             trajectory.iter().map(|p: &TrajectoryPoint| p.into()).collect();
         let result_trip = map_match(locations).await;
@@ -54,7 +53,7 @@ pub(crate) async fn build_nodes(cli: &Cli) {
             Ok(trip) => {
                 if let Some(warnings) = trip.warnings {
                     let message = format!("{:?}", warnings);
-                    db.insert_match_error(*trajectory_id, &message).await.unwrap();
+                    db.insert_match_error(*trajectory_id, &message).unwrap();
                     // println!("Map matching warnings for trajectory {}: {:?}", trajectory_id, warnings);
                 } else {
                     let nodes =
@@ -67,13 +66,13 @@ pub(crate) async fn build_nodes(cli: &Cli) {
                                     h3_12: lat_lng_to_h3_12(pt.lat, pt.lon) as i64,
                                 }
                             );
-                    db.insert_nodes(nodes.collect()).await.unwrap();
+                    db.insert_nodes(nodes.collect()).unwrap();
                 }
             }
             Err(e) => {
                 let message = format!("Failed to map match trajectory {}: {:?}",
                                       trajectory_id, e);
-                db.insert_match_error(*trajectory_id, &message).await.unwrap();
+                db.insert_match_error(*trajectory_id, &message).unwrap();
             }
         }
     }
