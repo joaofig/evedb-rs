@@ -7,11 +7,11 @@ pub struct SqliteDb {
 impl SqliteDb {
     pub fn new(path: &str) -> Self {
         Self {
-            path: format!("sqlite://{}", path.to_string()),
+            path: path.to_string(),
         }
     }
 
-    pub fn connect(&self) -> std::result::Result<Connection, Error> {
+    pub fn connect(&self) -> Result<Connection, Error> {
         Connection::open(&self.path)
     }
 

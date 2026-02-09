@@ -22,20 +22,15 @@ impl EveDb {
 
     pub fn connect(&self) -> Result<Connection, Error> {
         let conn = self.db.connect()?;
-        conn.execute("PRAGMA journal_mode=WAL", ())?;
-        conn.execute("PRAGMA synchronous=NORMAL", ())?;
-        conn.execute("PRAGMA cache_size=10000", ())?;
-        conn.execute("PRAGMA temp_store=MEMORY", ())?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "cache_size", "10000")?;
+        conn.pragma_update(None, "temp_store", "MEMORY")?;
         Ok(conn)
     }
 
     pub fn create_vehicle_table(&self) -> Result<usize, Error> {
-        let try_conn = self.connect();
-
-        let conn = match try_conn {
-            Err(e) => return Err(e),
-            Ok(conn) => conn,
-        };
+        let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS vehicle;", ())?;
 
@@ -53,12 +48,7 @@ impl EveDb {
     }
 
     pub fn create_signal_table(&self) -> Result<usize, Error> {
-        let try_conn = self.connect();
-
-        let conn = match try_conn {
-            Err(e) => return Err(e),
-            Ok(conn) => conn,
-        };
+        let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS signal;", ())?;
         let sql = text_block! {
@@ -111,11 +101,9 @@ impl EveDb {
         let mut counter: usize = 0;
 
         let mut tx = conn.transaction()?;
-        for signal in signals {
-            if let Ok(s) = signal {
-                self.insert_signal(&mut tx, &s)?;
-                counter += 1;
-            }
+        for signal in signals.flatten() {
+            self.insert_signal(&mut tx, &signal)?;
+            counter += 1;
         }
         tx.commit()?;
         Ok(counter)
@@ -379,7 +367,7 @@ impl EveDb {
         conn.execute(sql, params!(trajectory_id, match_error))
     }
 
-    pub fn insert_nodes(&self, nodes: Vec<Node>) -> Result<(), Error> {
+    pub fn insert_nodes(&self, nodes: impl Iterator<Item = Node>) -> Result<(), Error> {
         let mut conn = self.connect()?;
 
         let sql = text_block! {
@@ -389,12 +377,15 @@ impl EveDb {
             "    (?1, ?2, ?3, ?4);"
         };
         let tx = conn.transaction()?;
-        for node in nodes.iter() {
-            tx.execute(sql, params!(
+        {
+            let mut stmt = tx.prepare(sql)?;
+            for node in nodes {
+                stmt.execute(params!(
                 node.trajectory_id,
                 node.latitude,
                 node.longitude,
                 node.h3_12))?;
+            }
         }
         tx.commit()
     }

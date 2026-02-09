@@ -8,8 +8,12 @@ use crate::cli::Cli;
 use crate::db::evedb::EveDb;
 use crate::models::trajectory::TrajectoryPoint;
 use crate::models::node::Node;
+use std::time::Instant;
 
-async fn map_match(locations: Vec<Location>) -> Result<Trip, valhalla_client::Error> {
+async fn map_match(
+    valhalla: &Valhalla,
+    locations: impl Iterator<Item = Location>
+) -> Result<Trip, valhalla_client::Error> {
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -20,7 +24,6 @@ async fn map_match(locations: Vec<Location>) -> Result<Trip, valhalla_client::Er
         .trace_options(trace_options)
         .costing(Costing::Auto(AutoCostingOptions::default()));
 
-    let valhalla = Valhalla::default();
     valhalla.trace_route(manifest).await
 }
 
@@ -43,18 +46,23 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         println!("Populating the node table")
     }
 
+    let valhalla = Valhalla::default();
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
-    for trajectory_id in trajectory_ids.iter().progress() {
+    for trajectory_id in trajectory_ids.iter() /*.progress()*/ {
         let trajectory = db.get_trajectory_points(*trajectory_id).unwrap();
-        let locations: Vec<Location> =
-            trajectory.iter().map(|p: &TrajectoryPoint| p.into()).collect();
-        let result_trip = map_match(locations).await;
+        let locations =
+            trajectory.iter().map(|p: &TrajectoryPoint| p.into());
+
+        let now = Instant::now();
+        let result_trip = map_match(&valhalla, locations).await;
+        let elapsed = now.elapsed();
+        println!("map_match: {:.2?}", elapsed);
+
         match result_trip {
             Ok(trip) => {
                 if let Some(warnings) = trip.warnings {
                     let message = format!("{:?}", warnings);
                     db.insert_match_error(*trajectory_id, &message).unwrap();
-                    // println!("Map matching warnings for trajectory {}: {:?}", trajectory_id, warnings);
                 } else {
                     let nodes =
                         trip.legs.iter()
@@ -66,7 +74,12 @@ pub(crate) async fn build_nodes(cli: &Cli) {
                                     h3_12: lat_lng_to_h3_12(pt.lat, pt.lon) as i64,
                                 }
                             );
-                    db.insert_nodes(nodes.collect()).unwrap();
+                    let result = db.insert_nodes(nodes);
+                    if let Err(e) = result {
+                        let message = format!("Failed to insert nodes for trajectory {}: {:?}",
+                                              trajectory_id, e);
+                        db.insert_match_error(*trajectory_id, &message).unwrap();
+                    }
                 }
             }
             Err(e) => {
