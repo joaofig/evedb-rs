@@ -16,3 +16,9 @@ pub struct TrajectoryUpdate {
     pub h3_12_ini: u64,
     pub h3_12_end: u64,
 }
+
+pub struct WayPoint {
+    pub time: i64,
+    pub latitude: f64,
+    pub longitude: f64,
+}

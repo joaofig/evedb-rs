@@ -2,29 +2,35 @@ use indicatif::{ProgressIterator};
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::Valhalla;
-use valhalla_client::route::{Location, Trip};
+use valhalla_client::route::{ShapePoint, Trip};
 use crate::tools::lat_lng_to_h3_12;
 use crate::cli::Cli;
 use crate::db::evedb::EveDb;
-use crate::models::trajectory::TrajectoryPoint;
+use crate::models::trajectory::WayPoint;
 use crate::models::node::Node;
 use std::time::Instant;
 
 async fn map_match(
-    valhalla: &Valhalla,
-    locations: impl Iterator<Item = Location>
+    locations: impl Iterator<Item = ShapePoint>
 ) -> Result<Trip, valhalla_client::Error> {
+    let valhalla = Valhalla::default();
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
     let manifest: Manifest = Manifest::builder()
-        .shape_match(ShapeMatchType::WalkOrSnap)
+        .shape_match(ShapeMatchType::MapSnap)
         .shape(locations)
         .use_timestamps(false)
+        .verbose(true)
         .trace_options(trace_options)
         .costing(Costing::Auto(AutoCostingOptions::default()));
 
-    valhalla.trace_route(manifest).await
+    let now = Instant::now();
+    let result = valhalla.trace_route(manifest).await;
+    let elapsed = now.elapsed();
+    println!("map_match: {:.2?}", elapsed);
+
+    result
 }
 
 pub(crate) async fn build_nodes(cli: &Cli) {
@@ -46,18 +52,15 @@ pub(crate) async fn build_nodes(cli: &Cli) {
         println!("Populating the node table")
     }
 
-    let valhalla = Valhalla::default();
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     for trajectory_id in trajectory_ids.iter() /*.progress()*/ {
-        let trajectory = db.get_trajectory_points(*trajectory_id).unwrap();
+        let way_points = db.get_way_points(*trajectory_id).unwrap();
         let locations =
-            trajectory.iter().map(|p: &TrajectoryPoint| p.into());
+            way_points.iter().map(|p: &WayPoint| p.into());
 
-        let now = Instant::now();
-        let result_trip = map_match(&valhalla, locations).await;
-        let elapsed = now.elapsed();
-        println!("map_match: {:.2?}", elapsed);
+        println!("Processing trajectory {} with {} points", trajectory_id, way_points.len());
 
+        let result_trip = map_match(locations).await;
         match result_trip {
             Ok(trip) => {
                 if let Some(warnings) = trip.warnings {

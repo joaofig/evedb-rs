@@ -1,6 +1,6 @@
 use crate::db::api::SqliteDb;
 use crate::models::signal::CsvSignal;
-use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate};
+use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
@@ -322,6 +322,34 @@ impl EveDb {
         let results = points.collect::<Result<Vec<TrajectoryPoint>, Error>>()?;
         Ok(results)
     }
+
+    pub fn get_way_points(
+        &self,
+        trajectory_id: i64,
+    ) -> Result<Vec<WayPoint>, Error> {
+        let conn = self.connect()?;
+        let sql = text_block! {
+            "select     s.latitude as lat"
+            ",          s.longitude as lon"
+            ",          min(s.time_stamp) / 1000 as time"
+            "from       signal s"
+            "inner join trajectory t on s.vehicle_id = t.vehicle_id and s.trip_id = t.trip_id"
+            "where      t.traj_id = ?1"
+            "group by   s.latitude, s.longitude"
+            "order by   time;"
+        };
+        let mut stmt = conn.prepare(sql)?;
+        let points = stmt.query_map([trajectory_id], |row: &Row| {
+            Ok(WayPoint {
+                time: row.get(2)?,
+                latitude: row.get(0)?,
+                longitude: row.get(1)?,
+            })
+        })?;
+        let results = points.collect::<Result<Vec<WayPoint>, Error>>()?;
+        Ok(results)
+    }
+
 
     pub fn create_trajectory_indexes(&self) -> Result<usize, Error> {
         let conn = self.connect()?;
