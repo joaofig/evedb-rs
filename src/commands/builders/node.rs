@@ -8,12 +8,12 @@ use crate::cli::Cli;
 use crate::db::evedb::EveDb;
 use crate::models::trajectory::WayPoint;
 use crate::models::node::Node;
-use std::time::Instant;
+use url::Url;
 
 async fn map_match(
     locations: impl Iterator<Item = ShapePoint>
 ) -> Result<Trip, valhalla_client::Error> {
-    let valhalla = Valhalla::default();
+    let valhalla = Valhalla::new(Url::parse("http://localhost:8002/").unwrap());
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -25,12 +25,7 @@ async fn map_match(
         .trace_options(trace_options)
         .costing(Costing::Auto(AutoCostingOptions::default()));
 
-    let now = Instant::now();
-    let result = valhalla.trace_route(manifest).await;
-    let elapsed = now.elapsed();
-    println!("map_match: {:.2?}", elapsed);
-
-    result
+    valhalla.trace_route(manifest).await
 }
 
 pub(crate) async fn build_nodes(cli: &Cli) {
@@ -53,12 +48,10 @@ pub(crate) async fn build_nodes(cli: &Cli) {
     }
 
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
-    for trajectory_id in trajectory_ids.iter() /*.progress()*/ {
+    for trajectory_id in trajectory_ids.iter().progress() {
         let way_points = db.get_way_points(*trajectory_id).unwrap();
         let locations =
             way_points.iter().map(|p: &WayPoint| p.into());
-
-        println!("Processing trajectory {} with {} points", trajectory_id, way_points.len());
 
         let result_trip = map_match(locations).await;
         match result_trip {
