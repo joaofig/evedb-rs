@@ -4,10 +4,10 @@ use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use indicatif::ProgressIterator;
-use std::result::Result;
 use csv::DeserializeRecordsIter;
 use rusqlite::{params, Connection, Error, Row, Transaction};
 use text_block_macros::text_block;
+use anyhow::{anyhow, Result};
 use crate::models::node::Node;
 
 pub struct EveDb {
@@ -20,7 +20,7 @@ impl EveDb {
         EveDb { db: database }
     }
 
-    pub fn connect(&self) -> Result<Connection, Error> {
+    pub fn connect(&self) -> Result<Connection> {
         let conn = self.db.connect()?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
@@ -29,7 +29,7 @@ impl EveDb {
         Ok(conn)
     }
 
-    pub fn create_vehicle_table(&self) -> Result<usize, Error> {
+    pub fn create_vehicle_table(&self) -> Result<usize> {
         let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS vehicle;", ())?;
@@ -45,9 +45,10 @@ impl EveDb {
                 weight        INTEGER
             ) STRICT";
         conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to create vehicle table: {:?}", e))
     }
 
-    pub fn create_signal_table(&self) -> Result<usize, Error> {
+    pub fn create_signal_table(&self) -> Result<usize> {
         let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS signal;", ())?;
@@ -91,12 +92,13 @@ impl EveDb {
         "   focus_points       TEXT,"
         "   h3_12              INTEGER);"};
         conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to create signal table: {:?}", e))
     }
 
     pub fn insert_signals(
         &self,
         signals: DeserializeRecordsIter<'_, &[u8], CsvSignal>,
-    ) -> anyhow::Result<usize> {
+    ) -> Result<usize> {
         let mut conn = self.connect()?;
         let mut counter: usize = 0;
 
@@ -113,7 +115,7 @@ impl EveDb {
         &self,
         tx: &mut Transaction<'_>,
         signal: &CsvSignal,
-    ) -> Result<usize, Error> {
+    ) -> Result<usize> {
         let sql = text_block! {
             "INSERT INTO signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -169,10 +171,10 @@ impl EveDb {
             signal.focus_points.clone(),
             index,
             );
-        tx.execute(sql, params)
+        tx.execute(sql, params).map_err(|e| anyhow!("Failed to insert signal: {:?}", e))
     }
 
-    pub fn create_signal_indexes(&self) -> Result<usize, Error> {
+    pub fn create_signal_indexes(&self) -> Result<usize> {
         let conn = self.connect()?;
         conn.execute("
         CREATE INDEX IF NOT EXISTS signal_vehicle_trip_idx ON signal (
@@ -182,12 +184,13 @@ impl EveDb {
         );", ())?;
         conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);",
                      ())
+            .map_err(|e| anyhow!("Failed to create signal indexes: {:?}", e))
     }
 
     pub fn insert_vehicles(
         &self,
         vehicles: Vec<Vehicle>,
-    ) -> Result<usize, Error> {
+    ) -> Result<usize> {
         let sql = "
         INSERT INTO vehicle (
             vehicle_id,
@@ -217,7 +220,7 @@ impl EveDb {
         Ok(vehicles.len())
     }
 
-    pub fn create_trajectory_table(&self) -> Result<usize, Error> {
+    pub fn create_trajectory_table(&self) -> Result<usize> {
         let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS trajectory;", ())?;
@@ -235,9 +238,10 @@ impl EveDb {
         "    h3_12_end   INTEGER"
         ");" };
         conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to create trajectory table: {:?}", e))
     }
 
-    pub fn insert_trajectories(&self) -> Result<usize, Error> {
+    pub fn insert_trajectories(&self) -> Result<usize> {
         let conn = self.connect()?;
 
         self.create_trajectory_table()?;
@@ -247,21 +251,22 @@ impl EveDb {
             "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
         };
         conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to insert trajectories: {:?}", e))
     }
 
-    pub fn update_trajectories(&self, updates: &[TrajectoryUpdate]) -> Result<(), Error> {
+    pub fn update_trajectories(&self, updates: &[TrajectoryUpdate]) -> Result<()> {
         let mut conn = self.connect()?;
         let tx = conn.transaction()?;
         let sql: String = String::from(
             "
-            UPDATE      trajectory
-            SET         length_m = ?
-            ,           duration_s = ?
-            ,           dt_ini = ?
-            ,           dt_end = ?
-            ,           h3_12_ini = ?
-            ,           h3_12_end = ?
-            WHERE       traj_id = ?
+            UPDATE trajectory
+            SET    length_m = ?
+            ,      duration_s = ?
+            ,      dt_ini = ?
+            ,      dt_end = ?
+            ,      h3_12_ini = ?
+            ,      h3_12_end = ?
+            WHERE  traj_id = ?
             ",
         );
 
@@ -277,10 +282,10 @@ impl EveDb {
             );
             tx.execute(&sql, params)?;
         }
-        tx.commit()
+        tx.commit().map_err(|e| anyhow!("Failed to update trajectories: {:?}", e))
     }
 
-    pub fn get_trajectory_ids(&self) -> Result<Vec<i64>, Error> {
+    pub fn get_trajectory_ids(&self) -> Result<Vec<i64>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "SELECT traj_id FROM trajectory"
@@ -294,7 +299,7 @@ impl EveDb {
     pub fn get_trajectory_points(
         &self,
         trajectory_id: i64,
-    ) -> Result<Vec<TrajectoryPoint>, Error> {
+    ) -> Result<Vec<TrajectoryPoint>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "select     s.signal_id "
@@ -326,7 +331,7 @@ impl EveDb {
     pub fn get_way_points(
         &self,
         trajectory_id: i64,
-    ) -> Result<Vec<WayPoint>, Error> {
+    ) -> Result<Vec<WayPoint>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "select     s.latitude as lat"
@@ -351,7 +356,7 @@ impl EveDb {
     }
 
 
-    pub fn create_trajectory_indexes(&self) -> Result<usize, Error> {
+    pub fn create_trajectory_indexes(&self) -> Result<usize> {
         let conn = self.connect()?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS traj_vehicle_idx ON trajectory (vehicle_id, trip_id);",
@@ -359,11 +364,11 @@ impl EveDb {
         )?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS traj_h3_idx ON trajectory (h3_12_ini);",
-            ()
+            ()).map_err(|e| anyhow!("Failed to create trajectory indexes: {:?}", e)
         )
     }
 
-    pub fn create_node_table(&self) -> Result<usize, Error> {
+    pub fn create_node_table(&self) -> Result<usize> {
         let conn = self.connect()?;
 
         conn.execute("DROP TABLE IF EXISTS main.node;", ())?;
@@ -378,13 +383,14 @@ impl EveDb {
         ");" };
 
         conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to create node table: {:?}", e))
     }
     
     pub fn insert_match_error(
         &self, 
         trajectory_id: i64, 
         match_error: &str
-    ) -> Result<usize, Error> {
+    ) -> Result<usize> {
         let conn = self.connect()?;
         let sql = text_block! {
             "INSERT INTO node "
@@ -393,9 +399,10 @@ impl EveDb {
             "    (?1, ?2);"
         };
         conn.execute(sql, params!(trajectory_id, match_error))
+            .map_err(|e| anyhow!("Failed to insert match error: {:?}", e))
     }
 
-    pub fn insert_nodes(&self, nodes: impl Iterator<Item = Node>) -> Result<(), Error> {
+    pub fn insert_nodes(&self, nodes: impl Iterator<Item = Node>) -> Result<()> {
         let mut conn = self.connect()?;
 
         let sql = text_block! {
@@ -415,6 +422,6 @@ impl EveDb {
                 node.h3_12))?;
             }
         }
-        tx.commit()
+        tx.commit().map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
     }
 }

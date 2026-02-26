@@ -69,24 +69,12 @@ pub(crate) fn build_trajectories(cli: &Cli) {
         println!("Creating the trajectory table")
     }
 
-    let result = db.create_trajectory_table();
-    if result.is_err() {
-        panic!(
-            "Failed to create trajectory table {}",
-            result.err().unwrap()
-        );
-    }
+    db.create_trajectory_table().expect("Failed to create trajectory table");
 
     if cli.verbose {
         println!("Inserting trajectory records")
     }
-    let result = db.insert_trajectories();
-    if result.is_err() {
-        panic!(
-            "Failed to insert trajectory records {}",
-            result.err().unwrap()
-        );
-    }
+    db.insert_trajectories().expect("Failed to insert trajectory records");
 
     let updates = get_trajectory_updates(&db);
     if cli.verbose {
@@ -96,9 +84,9 @@ pub(crate) fn build_trajectories(cli: &Cli) {
         Ok(_) => {
             match db.create_trajectory_indexes() {
                 Ok(_) => println!("Trajectory table updated successfully"),
-                Err(e) => println!("Failed to create trajectory indexes {}", e),
+                Err(e) => eprintln!("Failed to create trajectory indexes {}", e),
             }
         }
-        Err(e) => println!("Failed to update trajectory records {}", e),
+        Err(e) => eprintln!("Failed to update trajectory records {}", e),
     }
 }

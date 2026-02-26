@@ -20,7 +20,9 @@ pub(crate) fn build_signals(cli: &Cli) {
     db.create_signal_table()
         .expect("Failed to create signal table");
 
-    let filenames = get_signal_filenames(cli).unwrap();
+    let filenames = get_signal_filenames(cli)
+        .expect("Failed to get signal file names");
+    
     for filename in filenames.iter().progress() {
         process_signal_file(cli, filename);
     }
