@@ -278,7 +278,7 @@ impl EveDb {
                 update.dt_end,
                 update.h3_12_ini as i64,
                 update.h3_12_end as i64,
-                update.traj_id
+                update.trajectory_id
             );
             tx.execute(&sql, params)?;
         }

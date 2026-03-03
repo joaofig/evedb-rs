@@ -9,7 +9,8 @@ use geo::{Haversine, LineString};
 use indicatif::ProgressIterator;
 
 fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
-    let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
+    let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0)
+        .unwrap();
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     let mut updates: Vec<TrajectoryUpdate> = Vec::with_capacity(trajectory_ids.len());
 
@@ -55,7 +56,7 @@ fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
                 / 1000.0,
             h3_12_ini: h3_ini,
             h3_12_end: h3_end,
-            traj_id: *trajectory_id,
+            trajectory_id: *trajectory_id,
         };
         updates.push(update);
     }

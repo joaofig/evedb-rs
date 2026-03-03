@@ -28,8 +28,7 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
             println!("Repository cloned successfully to {}", destination);
         }
     } else {
-        eprintln!("Error cloning repository:");
-        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        eprintln!("Error cloning repository: {}", String::from_utf8_lossy(&output.stderr));
     }
     output.status.success()
 }
@@ -38,10 +37,8 @@ pub fn clone_data(cli: &Cli) -> bool {
     let eved_destination: String = cli.repo_path.clone() + "/eved";
     let ved_destination: String = cli.repo_path.clone() + "/ved";
 
-    if fs::remove_dir_all(cli.repo_path.clone()).is_ok() {
-        if cli.verbose {
-            println!("Removed existing repository at {}", cli.repo_path);
-        }
+    if fs::remove_dir_all(cli.repo_path.clone()).is_ok() && cli.verbose {
+        println!("Removed existing repository at {}", cli.repo_path);
     }
 
     if clone_repo(

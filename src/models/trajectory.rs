@@ -8,7 +8,7 @@ pub struct TrajectoryPoint {
 }
 
 pub struct TrajectoryUpdate {
-    pub traj_id: i64,
+    pub trajectory_id: i64,
     pub length_m: f64,
     pub dt_ini: String,
     pub dt_end: String,
