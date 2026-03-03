@@ -9,16 +9,16 @@ docker-run:
            	-p 8002:8002 \
            	-v ./valhalla/files:/custom_files \
            	-e tile_urls=http://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
-           	-e serve_tiles=True -e build_admins=True \
-           	ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
+           	-e serve_tiles=True \
+           	ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
 
 podman-run:
 	podman run -dt --rm --name valhalla \
            	-p 8002:8002 \
            	-v ./valhalla/files:/custom_files \
            	-e tile_urls=http://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
-           	-e serve_tiles=True -e build_admins=True \
-           	ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
+           	-e serve_tiles=True \
+           	ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
 
 build:
 	cargo run --package evedb --bin evedb -- \
