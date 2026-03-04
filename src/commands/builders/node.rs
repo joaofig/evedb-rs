@@ -62,13 +62,13 @@ pub(crate) async fn build_nodes(cli: &Cli) {
                     let nodes =
                         trip.legs.iter()
                             .flat_map(|leg| leg.shape.iter()).map(|pt|
-                                Node {
-                                    trajectory_id: *trajectory_id,
-                                    latitude: pt.lat,
-                                    longitude: pt.lon,
-                                    h3_12: lat_lng_to_h3_12(pt.lat, pt.lon) as i64,
-                                }
-                            );
+                                Node::builder()
+                                    .trajectory_id(*trajectory_id)
+                                    .latitude(pt.lat)
+                                    .longitude(pt.lon)
+                                    .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
+                                    .build()
+                        );
                     let result = db.insert_nodes(nodes);
                     if let Err(e) = result {
                         let message = format!("Failed to insert nodes for trajectory {}: {:?}",

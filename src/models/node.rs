@@ -1,4 +1,6 @@
+use bon::Builder;
 
+#[derive(Builder)]
 pub struct Node {
     pub trajectory_id: i64,
     pub latitude: f64,
