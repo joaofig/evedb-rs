@@ -35,6 +35,10 @@ pub enum Commands {
     /// clones the source repositories
     #[command(about = "Clones the source repositories")]
     Clone,
+
+    /// Enters interactive mode
+    #[command(about = "Interactive mode")]
+    Interactive,
 }
 
 #[derive(Args, Clone, Debug)]
