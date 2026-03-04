@@ -34,20 +34,12 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
 }
 
 pub fn clone_data(cli: &Cli) -> bool {
-    let eved_destination: String = cli.repo_path.clone() + "/eved";
-    let ved_destination: String = cli.repo_path.clone() + "/ved";
+    let eved_path: String = cli.repo_path.clone() + "/eved";
+    let ved_path: String = cli.repo_path.clone() + "/ved";
 
     if fs::remove_dir_all(cli.repo_path.clone()).is_ok() && cli.verbose {
-        println!("Removed existing repository at {}", cli.repo_path);
+        println!("Removed existing repository data at {}", cli.repo_path);
     }
-
-    if clone_repo(
-        cli,
-        "https://bitbucket.org/datarepo/eved_dataset.git",
-        &eved_destination,
-    ) {
-        clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_destination)
-    } else {
-        false
-    }
+    clone_repo(cli,"https://bitbucket.org/datarepo/eved_dataset.git", &eved_path) &&
+        clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_path)
 }
