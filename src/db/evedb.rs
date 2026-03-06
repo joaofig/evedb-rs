@@ -425,3 +425,40 @@ impl EveDb {
         tx.commit().map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_create_tables_and_insert() {
+        let db_path = "test_evedb.db";
+        if std::path::Path::new(db_path).exists() {
+            fs::remove_file(db_path).unwrap();
+        }
+        let db = EveDb::new(db_path);
+        
+        db.create_vehicle_table().unwrap();
+        db.create_signal_table().unwrap();
+        db.create_trajectory_table().unwrap();
+
+        let vehicle = Vehicle {
+            vehicle_id: 1,
+            vehicle_type: Some("ICE".to_string()),
+            vehicle_class: Some("Sedan".to_string()),
+            engine: Some("V6".to_string()),
+            transmission: Some("Auto".to_string()),
+            drive_wheels: Some("FWD".to_string()),
+            weight: Some(1500),
+        };
+        db.insert_vehicles(vec![vehicle]).unwrap();
+
+        // Verify insertion
+        let conn = db.connect().unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM vehicle", [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 1);
+
+        fs::remove_file(db_path).unwrap();
+    }
+}

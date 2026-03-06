@@ -11,7 +11,7 @@ fn get_menu_option() -> String {
             "database",
             "repository",
             "clean",
-            "clone",
+            "clone",    
             "build",
             "match",
             "exit",
