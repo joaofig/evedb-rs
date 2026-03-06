@@ -1,18 +1,10 @@
-mod cli;
-mod commands;
-mod db;
-mod etl;
-mod models;
-mod tools;
-
-use crate::cli::Commands;
-use crate::commands::build::build_database;
-use crate::commands::builders::node::build_nodes;
-use crate::commands::clean::clean_data;
-use crate::commands::clone::clone_data;
-use crate::commands::interactive::interactive;
 use clap::Parser;
-use cli::Cli;
+use evedb::cli::{Cli, Commands};
+use evedb::commands::build::build_database;
+use evedb::commands::builders::node::build_nodes;
+use evedb::commands::clean::clean_data;
+use evedb::commands::clone::clone_data;
+use evedb::commands::interactive::interactive;
 
 #[tokio::main]
 async fn main() {

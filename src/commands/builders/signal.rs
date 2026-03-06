@@ -11,7 +11,7 @@ fn process_signal_file(cli: &Cli, filename: &str) {
     };
 }
 
-pub(crate) fn build_signals(cli: &Cli) {
+pub fn build_signals(cli: &Cli) {
     if cli.verbose {
         println!("Creating the signal table")
     }

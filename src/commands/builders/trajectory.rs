@@ -60,7 +60,7 @@ fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     updates
 }
 
-pub(crate) fn build_trajectories(cli: &Cli) {
+pub fn build_trajectories(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
     if cli.verbose {

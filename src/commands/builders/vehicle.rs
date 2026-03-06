@@ -2,7 +2,7 @@ use crate::cli::Cli;
 use crate::db::evedb::EveDb;
 use crate::etl::extract::vehicles::read_vehicles;
 
-pub(crate) fn build_vehicles(cli: &Cli) {
+pub fn build_vehicles(cli: &Cli) {
     if cli.verbose {
         println!("Creating the vehicle table")
     }

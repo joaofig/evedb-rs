@@ -12,7 +12,8 @@ use valhalla_client::route::{ShapePoint, Trip};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 
 async fn map_match(locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> {
-    let valhalla = Valhalla::new(Url::parse("http://localhost:8002/")?);
+    let valhalla_url = std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
+    let valhalla = Valhalla::new(Url::parse(&valhalla_url)?);
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -30,7 +31,7 @@ async fn map_match(locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> 
         .map_err(|e| anyhow!("Failed to map match: {:?}", e))
 }
 
-pub(crate) async fn build_nodes(cli: &Cli) {
+pub async fn build_nodes(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
     if cli.verbose {

@@ -131,12 +131,12 @@ The `Makefile` provides several convenience targets:
 
 # Testing
 Unit tests cover ETL and DB layers, including data parsing, transformations, and database operations.
+Integration tests verify the full `build` and `match` command pipelines using temporary workspaces and a mock Valhalla server.
+
 To run the tests:
 ```bash
 cargo test
 ```
-
-- **TODO**: Add integration tests for the full build and match commands.
 
 # Troubleshooting
 -   **git: command not found**: Install Git and ensure it’s on your `PATH`.
