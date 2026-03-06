@@ -6,8 +6,7 @@ pub(crate) fn build_vehicles(cli: &Cli) {
     if cli.verbose {
         println!("Creating the vehicle table")
     }
-    let vehicles = read_vehicles(cli)
-        .expect("Failed to read vehicles");
+    let vehicles = read_vehicles(cli).expect("Failed to read vehicles");
     let db: EveDb = EveDb::new(&cli.db_path);
     db.create_vehicle_table()
         .expect("Failed to create vehicle table");

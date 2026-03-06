@@ -1,5 +1,5 @@
-use valhalla_client::route::ShapePoint;
 use crate::models::trajectory::{TrajectoryPoint, WayPoint};
+use valhalla_client::route::ShapePoint;
 
 impl From<&TrajectoryPoint> for ShapePoint {
     fn from(point: &TrajectoryPoint) -> Self {

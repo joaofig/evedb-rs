@@ -1,14 +1,14 @@
 use crate::db::api::SqliteDb;
+use crate::models::node::Node;
 use crate::models::signal::CsvSignal;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
 use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
-use indicatif::ProgressIterator;
+use anyhow::{Result, anyhow};
 use csv::DeserializeRecordsIter;
-use rusqlite::{params, Connection, Error, Row, Transaction};
+use indicatif::ProgressIterator;
+use rusqlite::{Connection, Error, Row, Transaction, params};
 use text_block_macros::text_block;
-use anyhow::{anyhow, Result};
-use crate::models::node::Node;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -111,11 +111,7 @@ impl EveDb {
         Ok(counter)
     }
 
-    pub fn insert_signal(
-        &self,
-        tx: &mut Transaction<'_>,
-        signal: &CsvSignal,
-    ) -> Result<usize> {
+    pub fn insert_signal(&self, tx: &mut Transaction<'_>, signal: &CsvSignal) -> Result<usize> {
         let sql = text_block! {
             "INSERT INTO signal ("
             "   day_num, vehicle_id, trip_id, time_stamp, latitude, "
@@ -170,27 +166,30 @@ impl EveDb {
             signal.bus_stop,
             signal.focus_points.clone(),
             index,
-            );
-        tx.execute(sql, params).map_err(|e| anyhow!("Failed to insert signal: {:?}", e))
+        );
+        tx.execute(sql, params)
+            .map_err(|e| anyhow!("Failed to insert signal: {:?}", e))
     }
 
     pub fn create_signal_indexes(&self) -> Result<usize> {
         let conn = self.connect()?;
-        conn.execute("
+        conn.execute(
+            "
         CREATE INDEX IF NOT EXISTS signal_vehicle_trip_idx ON signal (
             vehicle_id ASC,
             trip_id ASC,
             time_stamp ASC
-        );", ())?;
-        conn.execute("CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);",
-                     ())
-            .map_err(|e| anyhow!("Failed to create signal indexes: {:?}", e))
+        );",
+            (),
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS signal_h3_idx ON signal (h3_12);",
+            (),
+        )
+        .map_err(|e| anyhow!("Failed to create signal indexes: {:?}", e))
     }
 
-    pub fn insert_vehicles(
-        &self,
-        vehicles: Vec<Vehicle>,
-    ) -> Result<usize> {
+    pub fn insert_vehicles(&self, vehicles: Vec<Vehicle>) -> Result<usize> {
         let sql = "
         INSERT INTO vehicle (
             vehicle_id,
@@ -282,7 +281,8 @@ impl EveDb {
             );
             tx.execute(&sql, params)?;
         }
-        tx.commit().map_err(|e| anyhow!("Failed to update trajectories: {:?}", e))
+        tx.commit()
+            .map_err(|e| anyhow!("Failed to update trajectories: {:?}", e))
     }
 
     pub fn get_trajectory_ids(&self) -> Result<Vec<i64>> {
@@ -291,15 +291,13 @@ impl EveDb {
             "SELECT traj_id FROM trajectory"
         };
         let mut stmt = conn.prepare(sql)?;
-        let traj_ids = stmt.query_map([], |row| row.get(0))?
+        let traj_ids = stmt
+            .query_map([], |row| row.get(0))?
             .collect::<Result<Vec<i64>, Error>>()?;
         Ok(traj_ids)
     }
 
-    pub fn get_trajectory_points(
-        &self,
-        trajectory_id: i64,
-    ) -> Result<Vec<TrajectoryPoint>> {
+    pub fn get_trajectory_points(&self, trajectory_id: i64) -> Result<Vec<TrajectoryPoint>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "select     s.signal_id "
@@ -328,10 +326,7 @@ impl EveDb {
         Ok(results)
     }
 
-    pub fn get_way_points(
-        &self,
-        trajectory_id: i64,
-    ) -> Result<Vec<WayPoint>> {
+    pub fn get_way_points(&self, trajectory_id: i64) -> Result<Vec<WayPoint>> {
         let conn = self.connect()?;
         let sql = text_block! {
             "select     s.latitude as lat"
@@ -355,17 +350,17 @@ impl EveDb {
         Ok(results)
     }
 
-
     pub fn create_trajectory_indexes(&self) -> Result<usize> {
         let conn = self.connect()?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS traj_vehicle_idx ON trajectory (vehicle_id, trip_id);",
-            ()
+            (),
         )?;
         conn.execute(
             "CREATE INDEX IF NOT EXISTS traj_h3_idx ON trajectory (h3_12_ini);",
-            ()).map_err(|e| anyhow!("Failed to create trajectory indexes: {:?}", e)
+            (),
         )
+        .map_err(|e| anyhow!("Failed to create trajectory indexes: {:?}", e))
     }
 
     pub fn create_node_table(&self) -> Result<usize> {
@@ -385,12 +380,8 @@ impl EveDb {
         conn.execute(sql, ())
             .map_err(|e| anyhow!("Failed to create node table: {:?}", e))
     }
-    
-    pub fn insert_match_error(
-        &self, 
-        trajectory_id: i64, 
-        match_error: &str
-    ) -> Result<usize> {
+
+    pub fn insert_match_error(&self, trajectory_id: i64, match_error: &str) -> Result<usize> {
         let conn = self.connect()?;
         let sql = text_block! {
             "INSERT INTO node "
@@ -416,13 +407,15 @@ impl EveDb {
             let mut stmt = tx.prepare(sql)?;
             for node in nodes {
                 stmt.execute(params!(
-                node.trajectory_id,
-                node.latitude,
-                node.longitude,
-                node.h3_12))?;
+                    node.trajectory_id,
+                    node.latitude,
+                    node.longitude,
+                    node.h3_12
+                ))?;
             }
         }
-        tx.commit().map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
+        tx.commit()
+            .map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
     }
 }
 
@@ -438,7 +431,7 @@ mod tests {
             fs::remove_file(db_path).unwrap();
         }
         let db = EveDb::new(db_path);
-        
+
         db.create_vehicle_table().unwrap();
         db.create_signal_table().unwrap();
         db.create_trajectory_table().unwrap();
@@ -456,7 +449,9 @@ mod tests {
 
         // Verify insertion
         let conn = db.connect().unwrap();
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM vehicle", [], |r| r.get(0)).unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM vehicle", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(count, 1);
 
         fs::remove_file(db_path).unwrap();

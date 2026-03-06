@@ -156,7 +156,7 @@ cargo run -- clean
 - No automated tests yet (unit tests and integration tests needed)
 - Data dictionary documentation needed
 - Sample queries and row count validation needed
-- CI/CD configuration needed
+- Improved error handling for missing Valhalla instances during `match`.
 
 ## Dependencies to Be Aware Of
 - `h3o`: H3 geospatial indexing library

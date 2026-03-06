@@ -28,7 +28,10 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
             println!("Repository cloned successfully to {}", destination);
         }
     } else {
-        eprintln!("Error cloning repository: {}", String::from_utf8_lossy(&output.stderr));
+        eprintln!(
+            "Error cloning repository: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
     output.status.success()
 }
@@ -40,6 +43,9 @@ pub fn clone_data(cli: &Cli) -> bool {
     if fs::remove_dir_all(cli.repo_path.clone()).is_ok() && cli.verbose {
         println!("Removed existing repository data at {}", cli.repo_path);
     }
-    clone_repo(cli,"https://bitbucket.org/datarepo/eved_dataset.git", &eved_path) &&
-        clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_path)
+    clone_repo(
+        cli,
+        "https://bitbucket.org/datarepo/eved_dataset.git",
+        &eved_path,
+    ) && clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_path)
 }

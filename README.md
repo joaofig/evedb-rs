@@ -151,5 +151,4 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 # Notes and TODOs
 -   **TODO**: Document data dictionary for signals/vehicles with columns and units.
 -   **TODO**: Provide sample queries and expected row counts for sanity checks.
--   **TODO**: Add CI configuration (GitHub Actions/GitLab CI).
--   **TODO**: Improve error handling for missing Valhalla instances during `match`.
+- **TODO**: Improve error handling for missing Valhalla instances during `match`.

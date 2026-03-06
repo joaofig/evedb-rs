@@ -7,13 +7,12 @@ mod tools;
 
 use crate::cli::Commands;
 use crate::commands::build::build_database;
+use crate::commands::builders::node::build_nodes;
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
-use crate::commands::builders::node::build_nodes;
 use crate::commands::interactive::interactive;
 use clap::Parser;
 use cli::Cli;
-
 
 #[tokio::main]
 async fn main() {

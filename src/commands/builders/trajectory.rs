@@ -9,16 +9,13 @@ use geo::{Haversine, LineString};
 use indicatif::ProgressIterator;
 
 fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
-    let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0)
-        .unwrap();
+    let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     let mut updates: Vec<TrajectoryUpdate> = Vec::with_capacity(trajectory_ids.len());
 
     // Now, generate the update trajectory records
     for trajectory_id in trajectory_ids.iter().progress() {
-        let trajectory_points = db
-            .get_trajectory_points(*trajectory_id)
-            .unwrap_or(vec![]);
+        let trajectory_points = db.get_trajectory_points(*trajectory_id).unwrap_or(vec![]);
 
         if trajectory_points.len() < 2 {
             continue;
@@ -70,24 +67,24 @@ pub(crate) fn build_trajectories(cli: &Cli) {
         println!("Creating the trajectory table")
     }
 
-    db.create_trajectory_table().expect("Failed to create trajectory table");
+    db.create_trajectory_table()
+        .expect("Failed to create trajectory table");
 
     if cli.verbose {
         println!("Inserting trajectory records")
     }
-    db.insert_trajectories().expect("Failed to insert trajectory records");
+    db.insert_trajectories()
+        .expect("Failed to insert trajectory records");
 
     let updates = get_trajectory_updates(&db);
     if cli.verbose {
         println!("Updating {} trajectory records", updates.len())
     }
     match db.update_trajectories(&updates) {
-        Ok(_) => {
-            match db.create_trajectory_indexes() {
-                Ok(_) => println!("Trajectory table updated successfully"),
-                Err(e) => eprintln!("Failed to create trajectory indexes {}", e),
-            }
-        }
+        Ok(_) => match db.create_trajectory_indexes() {
+            Ok(_) => println!("Trajectory table updated successfully"),
+            Err(e) => eprintln!("Failed to create trajectory indexes {}", e),
+        },
         Err(e) => eprintln!("Failed to update trajectory records {}", e),
     }
 }

@@ -1,6 +1,6 @@
 use crate::models::vehicle::Vehicle;
-use calamine::{DataType, Reader, Xlsx, open_workbook, Range, Data};
 use anyhow::Result;
+use calamine::{Data, DataType, Range, Reader, Xlsx, open_workbook};
 
 fn no_data_str(data: &Option<String>) -> Option<String> {
     match data {
@@ -21,9 +21,10 @@ fn read_vehicles_from_range(range: Range<Data>) -> Result<Vec<Vehicle>> {
 
     for row in range.rows().skip(1) {
         let vehicle: Vehicle = Vehicle {
-            vehicle_id: row[0].as_i64()
-                .ok_or(std::io::Error::new(std::io::ErrorKind::InvalidData,
-                                           "Vehicle ID cannot be parsed"))?,
+            vehicle_id: row[0].as_i64().ok_or(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Vehicle ID cannot be parsed",
+            ))?,
             vehicle_type: no_data_str(&row[1].as_string()),
             vehicle_class: no_data_str(&row[2].as_string()),
             engine: no_data_str(&row[3].as_string()),
@@ -68,7 +69,10 @@ mod tests {
     #[test]
     fn test_no_data_str() {
         assert_eq!(no_data_str(&Some("NO DATA AVAILABLE".to_string())), None);
-        assert_eq!(no_data_str(&Some("CAR".to_string())), Some("CAR".to_string()));
+        assert_eq!(
+            no_data_str(&Some("CAR".to_string())),
+            Some("CAR".to_string())
+        );
         assert_eq!(no_data_str(&None), None);
     }
 
