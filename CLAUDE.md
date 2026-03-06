@@ -153,7 +153,6 @@ cargo run -- clean
 - H3 indexes are built at resolution levels appropriate for the data scale
 
 ## TODOs & Known Issues
-- Data dictionary documentation needed
 - Sample queries and row count validation needed
 - Improved error handling for missing Valhalla instances during `match`.
 

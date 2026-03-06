@@ -114,6 +114,7 @@ The `Makefile` provides several convenience targets:
 ## Database
 -   The generated SQLite database is stored at `--db-path` (default: `./data/eved/evedb.db`).
 -   `rusqlite` is compiled with the `bundled` feature, so no external SQLite installation is needed.
+-   See the [Data Dictionary](docs/data_dictionary.md) for details on tables, columns, and units.
 
 # Project structure
 -   `Cargo.toml`: Project manifest (name: `evedb`).
@@ -149,6 +150,5 @@ cargo test
 This project is licensed under the MIT License. See `LICENSE` for details.
 
 # Notes and TODOs
--   **TODO**: Document data dictionary for signals/vehicles with columns and units.
 -   **TODO**: Provide sample queries and expected row counts for sanity checks.
 - **TODO**: Improve error handling for missing Valhalla instances during `match`.
