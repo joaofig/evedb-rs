@@ -17,7 +17,7 @@ use cli::Cli;
 
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
 
     match &cli.command {
         Commands::Build(args) => {
@@ -33,7 +33,7 @@ async fn main() {
             clone_data(&cli);
         }
         Commands::Interactive => {
-            interactive(&cli);
+            interactive(&mut cli).await;
         }
     }
 }
