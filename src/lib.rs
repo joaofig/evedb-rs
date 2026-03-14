@@ -1,6 +1,6 @@
-pub mod tools;
 pub mod cli;
 pub mod commands;
 pub mod db;
-pub mod models;
 pub mod etl;
+pub mod models;
+pub mod tools;

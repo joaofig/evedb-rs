@@ -151,4 +151,3 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
 # Notes and TODOs
 -   **TODO**: Provide sample queries and expected row counts for sanity checks.
-- **TODO**: Improve error handling for missing Valhalla instances during `match`.

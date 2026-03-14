@@ -1,4 +1,7 @@
 use crate::cli::Cli;
+use crate::db::evedb::EveDb;
+use crate::models::node::Node;
+use crate::models::trajectory::WayPoint;
 use crate::tools::lat_lng_to_h3_12;
 use anyhow::{Result, anyhow};
 use indicatif::ProgressIterator;
@@ -7,11 +10,11 @@ use valhalla_client::Valhalla;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
-use crate::db::evedb::EveDb;
-use crate::models::node::Node;
-use crate::models::trajectory::WayPoint;
 
-async fn map_match(valhalla: &Valhalla, locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> {
+async fn map_match(
+    valhalla: &Valhalla,
+    locations: impl Iterator<Item = ShapePoint>,
+) -> Result<Trip> {
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -47,14 +50,20 @@ pub async fn build_nodes(cli: &Cli) {
         println!("Checking Valhalla instance at {}", valhalla_url);
     }
 
-    match valhalla.status(valhalla_client::status::Manifest::default()).await {
+    match valhalla
+        .status(valhalla_client::status::Manifest::default())
+        .await
+    {
         Ok(_) => {
             if cli.verbose {
                 println!("Valhalla instance is up and running");
             }
         }
         Err(e) => {
-            eprintln!("Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.", valhalla_url, e);
+            eprintln!(
+                "Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.",
+                valhalla_url, e
+            );
             return;
         }
     }

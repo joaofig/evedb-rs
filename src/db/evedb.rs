@@ -1,14 +1,14 @@
 use crate::db::api::SqliteDb;
+use crate::models::node::Node;
+use crate::models::signal::CsvSignal;
+use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
+use crate::models::vehicle::Vehicle;
 use crate::tools::lat_lng_to_h3_12;
 use anyhow::{Result, anyhow};
 use csv::DeserializeRecordsIter;
 use indicatif::ProgressIterator;
 use rusqlite::{Connection, Error, Row, Transaction, params};
 use text_block_macros::text_block;
-use crate::models::node::Node;
-use crate::models::signal::CsvSignal;
-use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
-use crate::models::vehicle::Vehicle;
 
 pub struct EveDb {
     pub db: SqliteDb,
