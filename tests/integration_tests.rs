@@ -147,6 +147,19 @@ async fn test_match_command_with_mock_valhalla() {
         .mount(&mock_server)
         .await;
 
+    // Mock Valhalla status response
+    let status_response = json!({
+        "version": "3.1.4",
+        "tileset_last_modified": 1600000000,
+        "available_actions": ["trace_route", "status"]
+    });
+
+    Mock::given(method("POST"))
+        .and(path("/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(status_response))
+        .mount(&mock_server)
+        .await;
+
     let cli = Cli {
         repo_path: "".to_string(),
         db_path: db_path.to_str().unwrap().to_string(),
@@ -163,4 +176,35 @@ async fn test_match_command_with_mock_valhalla() {
     assert!(node_count > 0);
 
     unsafe { std::env::remove_var("VALHALLA_URL"); }
+}
+
+#[tokio::test]
+async fn test_match_command_with_missing_valhalla() {
+    let tmp_dir = tempdir().unwrap();
+    let db_path = tmp_dir.path().join("evedb.db");
+
+    let db = EveDb::new(db_path.to_str().unwrap());
+    db.create_signal_table().unwrap();
+    db.create_trajectory_table().unwrap();
+
+    let cli = Cli {
+        repo_path: "".to_string(),
+        db_path: db_path.to_str().unwrap().to_string(),
+        verbose: true,
+        command: Commands::Match,
+    };
+
+    // Use a port that is NOT the mock server and unlikely to be used
+    unsafe { std::env::set_var("VALHALLA_URL", "http://127.0.0.1:12345/"); }
+    build_nodes(&cli).await;
+    unsafe { std::env::remove_var("VALHALLA_URL"); }
+
+    let conn = db.connect().unwrap();
+    let table_exists: bool = conn.query_row(
+        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='node'",
+        [],
+        |r| r.get::<_, i64>(0)
+    ).unwrap() > 0;
+
+    assert!(!table_exists, "Node table should not have been created if Valhalla is missing");
 }

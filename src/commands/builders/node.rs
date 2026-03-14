@@ -11,9 +11,7 @@ use crate::db::evedb::EveDb;
 use crate::models::node::Node;
 use crate::models::trajectory::WayPoint;
 
-async fn map_match(locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> {
-    let valhalla_url = std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
-    let valhalla = Valhalla::new(Url::parse(&valhalla_url)?);
+async fn map_match(valhalla: &Valhalla, locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> {
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
         .gps_accuracy(10.0);
@@ -34,6 +32,33 @@ async fn map_match(locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> 
 pub async fn build_nodes(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
+    let valhalla_url =
+        std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
+    let valhalla_url = match Url::parse(&valhalla_url) {
+        Ok(url) => url,
+        Err(e) => {
+            eprintln!("Invalid Valhalla URL '{}': {}", valhalla_url, e);
+            return;
+        }
+    };
+    let valhalla = Valhalla::new(valhalla_url.clone());
+
+    if cli.verbose {
+        println!("Checking Valhalla instance at {}", valhalla_url);
+    }
+
+    match valhalla.status(valhalla_client::status::Manifest::default()).await {
+        Ok(_) => {
+            if cli.verbose {
+                println!("Valhalla instance is up and running");
+            }
+        }
+        Err(e) => {
+            eprintln!("Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.", valhalla_url, e);
+            return;
+        }
+    }
+
     if cli.verbose {
         println!("Creating the node table")
     }
@@ -51,7 +76,7 @@ pub async fn build_nodes(cli: &Cli) {
             .expect("Failed to get way points");
         let locations = way_points.iter().map(|p: &WayPoint| p.into());
 
-        let result_trip = map_match(locations).await;
+        let result_trip = map_match(&valhalla, locations).await;
         match result_trip {
             Ok(trip) => {
                 if let Some(warnings) = trip.warnings {
