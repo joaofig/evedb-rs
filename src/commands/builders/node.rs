@@ -1,7 +1,4 @@
 use crate::cli::Cli;
-use crate::db::evedb::EveDb;
-use crate::models::node::Node;
-use crate::models::trajectory::WayPoint;
 use crate::tools::lat_lng_to_h3_12;
 use anyhow::{Result, anyhow};
 use indicatif::ProgressIterator;
@@ -10,6 +7,9 @@ use valhalla_client::Valhalla;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
+use crate::db::evedb::EveDb;
+use crate::models::node::Node;
+use crate::models::trajectory::WayPoint;
 
 async fn map_match(locations: impl Iterator<Item = ShapePoint>) -> Result<Trip> {
     let valhalla_url = std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
