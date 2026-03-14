@@ -88,14 +88,15 @@ The build process expects the following data within the cloned repositories:
     -   `Data/VED_Static_Data_PHEV&EV.xlsx`
 
 The builder will:
-1.  Create tables (`vehicles`, `signals`, `trajectories`) in the SQLite database.
+1.  Create tables (`vehicle`, `signal`, `trajectory`, `node`) in the SQLite database.
 2.  Load vehicle data from XLSX files.
 3.  Iterate through CSV entries in `eVED.zip` and load signals.
 4.  Build indexes for faster queries.
 5.  Generate trajectories from loaded data.
+6.  Map-match trajectories into road segments (nodes).
 
 ## Environment variables
--   None are required by the application code directly.
+-   `VALHALLA_URL`: Optional. URL for the Valhalla instance (Default: `http://localhost:8002/`).
 -   `Git` must be available on `PATH` for the `clone` step.
 -   Optional: `Docker`/`Podman` available on `PATH` for Valhalla helpers.
 
@@ -119,14 +120,14 @@ The `Makefile` provides several convenience targets:
 # Project structure
 -   `Cargo.toml`: Project manifest (name: `evedb`).
 -   `src/`
-    -   `main.rs`: Entry point (Tokio async main).
+    -   `main.rs`: Binary entry point (Tokio async main).
+    -   `lib.rs`: Library entry point.
     -   `cli.rs`: CLI definitions (`clap`).
     -   `commands/`: Subcommand implementations (`build.rs`, `clone.rs`, `clean.rs`, `interactive.rs`).
     -   `commands/builders/`: Logic for building specific entities (e.g., `node.rs`).
     -   `db/`: SQLite schema and load routines.
     -   `etl/`: Extraction and transformation logic.
     -   `models/`: Data models for vehicles, signals, and trajectories.
--   `lib/`: Supporting libraries or modules.
 -   `Makefile`: Convenience targets for development and Valhalla orchestration.
 -   `LICENSE`: MIT License.
 
