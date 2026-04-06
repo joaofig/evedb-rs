@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # evedb - AI Assistant Guide
 
 ## Project Overview
@@ -18,12 +22,19 @@ evedb is a Rust CLI tool that builds the eVED (Extended Vehicle Energy Dataset) 
 ```
 src/
 ├── main.rs              # Entry point with Tokio runtime
-├── cli.rs               # Command-line argument definitions
+├── lib.rs               # Library entry point
+├── cli.rs               # Command-line argument definitions (clap)
 ├── tools.rs             # Utility functions
 ├── commands/
 │   ├── build.rs         # Main build orchestration
 │   ├── clone.rs         # Repository cloning logic
-│   └── clean.rs         # Cleanup operations
+│   ├── clean.rs         # Cleanup operations
+│   ├── interactive.rs   # Interactive mode
+│   └── builders/        # Entity-specific builders
+│       ├── vehicle.rs   # Vehicle data builder
+│       ├── signal.rs    # Signal data builder
+│       ├── trajectory.rs# Trajectory builder
+│       └── node.rs      # Map-matched node builder
 ├── db/
 │   ├── api.rs           # Database connection wrapper
 │   └── evedb.rs         # Schema, tables, indexes, queries
@@ -34,6 +45,8 @@ src/
     ├── vehicle.rs       # Vehicle data model
     ├── signal.rs        # Signal data model (CSV deserializable)
     └── trajectory.rs    # Trajectory data model
+tests/
+└── integration_tests.rs # Integration tests with mock Valhalla
 ```
 
 ## Key Concepts
@@ -44,16 +57,21 @@ src/
 3. **Extract Signals**: Processes CSV files from eVED.zip archive
 4. **Build Trajectories**: Generates trajectory data with H3 indexing
 5. **Index**: Creates database indexes for performance
-6. **Clean**: Optionally removes cloned repositories
+6. **Map Match** (optional): Transform trajectories into road-network nodes via Valhalla
+7. **Clean**: Optionally removes cloned repositories
 
 ### Database Schema
-The SQLite database contains three main tables:
+The SQLite database contains four main tables:
 - `vehicles`: Static vehicle metadata from XLSX files
 - `signals`: Time-series signal data from CSV files
 - `trajectories`: Derived trajectory data with H3 geospatial indexes
+- `nodes`: Map-matched road network nodes (created via Valhalla)
 
 ### H3 Integration
 The project uses H3 hexagonal hierarchical spatial indexing for geospatial queries on trajectory data. H3 indexes are created during the build process to enable efficient location-based queries.
+
+### Map Matching with Valhalla
+The project includes map-matching capabilities using the Valhalla routing engine. This transforms GPS trajectories into road-network-aligned paths and creates node-based representations of vehicle movements.
 
 ## Development Conventions
 
@@ -81,6 +99,12 @@ The project uses H3 hexagonal hierarchical spatial indexing for geospatial queri
 
 ## Commands
 
+### Interactive Mode (Recommended)
+```bash
+cargo run -- interactive
+```
+Provides an interactive menu for easier configuration and execution.
+
 ### Build
 ```bash
 cargo run -- build [--no-clone] [--no-clean]
@@ -88,6 +112,13 @@ cargo run -- build [--no-clone] [--no-clean]
 - Orchestrates the full pipeline
 - `--no-clone`: Skip cloning (use existing repos)
 - `--no-clean`: Keep repos after build
+
+### Match (Map-matching)
+```bash
+cargo run -- match
+```
+- Map-matches trajectories using Valhalla instance
+- Requires `VALHALLA_URL` environment variable (default: http://localhost:8002/)
 
 ### Clone
 ```bash
@@ -120,11 +151,24 @@ cargo run -- clean
 3. Review database schema in `db/evedb.rs`
 4. Understand the command flow in `commands/build.rs`
 
-### Testing Changes
+### Testing and Development Commands
 - Build: `cargo build` (debug) or `cargo build --release`
 - Run: `cargo run -- <command>`
+- Test: `cargo test` (runs unit and integration tests)
 - Lint: `cargo clippy`
 - Format: `cargo fmt`
+- Interactive mode: `cargo run -- interactive` (easiest for configuration)
+
+### Makefile Targets (convenience commands)
+- `make build`: Debug build with hardcoded paths
+- `make build-r`: Release build with hardcoded paths
+- `make match`: Run map-matching (debug)
+- `make match-r`: Run map-matching (release)
+- `make flamegraph`: Profile using cargo-flamegraph
+- `make samply`: Profile using samply
+- `make get-map`: Download sample OSM PBF file for Michigan
+- `make docker-run` / `make podman-run`: Start Valhalla container
+- `make prune-docker` / `make prune-podman`: Cleanup container system
 
 ### Common Tasks
 
@@ -166,7 +210,13 @@ cargo run -- clean
 - `indicatif`: Terminal progress bars
 - `chrono`/`chrono-tz`: Time and timezone handling
 
-## Environment
+## Environment Variables and Requirements
+- `VALHALLA_URL`: URL for Valhalla instance (default: http://localhost:8002/)
 - Minimum Rust: Stable with edition 2024 support
-- Required tools: Git
-- Optional tools: Docker/Podman (for Valhalla Makefile helpers only)
+- Required tools: Git (must be on PATH)
+- Optional tools: Docker/Podman (for Valhalla), cargo-flamegraph, samply (for profiling)
+
+## Testing
+- Unit tests: Cover ETL and database layers
+- Integration tests: Full build and match command pipelines with mock Valhalla server
+- Run tests: `cargo test`
