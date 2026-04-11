@@ -456,4 +456,65 @@ mod tests {
 
         fs::remove_file(db_path).unwrap();
     }
+
+    #[test]
+    fn test_create_trajectory_table_and_indexes() {
+        let db_path = "test_traj.db";
+        if std::path::Path::new(db_path).exists() {
+            fs::remove_file(db_path).unwrap();
+        }
+        let db = EveDb::new(db_path);
+
+        db.create_trajectory_table().unwrap();
+        db.create_trajectory_indexes().unwrap();
+
+        let conn = db.connect().unwrap();
+        let table_exists: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='trajectory'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(table_exists, 1);
+
+        fs::remove_file(db_path).unwrap();
+    }
+
+    #[test]
+    fn test_node_operations() {
+        let db_path = "test_nodes.db";
+        if std::path::Path::new(db_path).exists() {
+            fs::remove_file(db_path).unwrap();
+        }
+        let db = EveDb::new(db_path);
+
+        db.create_node_table().unwrap();
+
+        let nodes = vec![Node::builder()
+            .trajectory_id(1)
+            .latitude(40.0)
+            .longitude(-70.0)
+            .h3_12(12345)
+            .build()];
+        db.insert_nodes(nodes.into_iter()).unwrap();
+
+        let conn = db.connect().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM node", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+
+        db.insert_match_error(2, "Test error").unwrap();
+        let error_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM node WHERE match_error IS NOT NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(error_count, 1);
+
+        fs::remove_file(db_path).unwrap();
+    }
 }

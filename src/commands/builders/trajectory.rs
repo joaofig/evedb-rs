@@ -60,6 +60,27 @@ fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     updates
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_get_trajectory_updates_empty() {
+        let db_path = "test_updates_empty.db";
+        if std::path::Path::new(db_path).exists() {
+            fs::remove_file(db_path).unwrap();
+        }
+        let db = EveDb::new(db_path);
+        db.create_trajectory_table().unwrap();
+
+        let updates = get_trajectory_updates(&db);
+        assert_eq!(updates.len(), 0);
+
+        fs::remove_file(db_path).unwrap();
+    }
+}
+
 pub fn build_trajectories(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 

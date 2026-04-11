@@ -4,6 +4,7 @@ use evedb::commands::builders::node::build_nodes;
 use evedb::db::evedb::EveDb;
 use rust_xlsxwriter::{Workbook, XlsxError};
 use serde_json::json;
+use serial_test::serial;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -108,6 +109,7 @@ async fn test_full_build_command() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_match_command_with_mock_valhalla() {
     let mock_server = MockServer::start().await;
     unsafe {
@@ -193,6 +195,7 @@ async fn test_match_command_with_mock_valhalla() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_match_command_with_missing_valhalla() {
     let tmp_dir = tempdir().unwrap();
     let db_path = tmp_dir.path().join("evedb.db");
