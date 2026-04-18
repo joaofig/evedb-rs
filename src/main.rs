@@ -11,19 +11,22 @@ async fn main() {
     let mut cli = Cli::parse();
 
     match &cli.command {
-        Commands::Build(args) => {
+        Some(Commands::Build(args)) => {
             build_database(&cli, args).await;
         }
-        Commands::Match => {
+        Some(Commands::Match) => {
             build_nodes(&cli).await;
         }
-        Commands::Clean => {
+        Some(Commands::Clean) => {
             clean_data(&cli);
         }
-        Commands::Clone => {
+        Some(Commands::Clone) => {
             clone_data(&cli);
         }
-        Commands::Interactive => {
+        Some(Commands::Interactive) => {
+            interactive(&mut cli).await;
+        }
+        None => {
             interactive(&mut cli).await;
         }
     }

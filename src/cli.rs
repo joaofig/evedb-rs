@@ -16,7 +16,7 @@ pub struct Cli {
     pub verbose: bool,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand, Clone, Debug)]

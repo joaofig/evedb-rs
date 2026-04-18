@@ -72,13 +72,13 @@ async fn test_full_build_command() {
         repo_path: repo_path.to_str().unwrap().to_string(),
         db_path: db_path.to_str().unwrap().to_string(),
         verbose: true,
-        command: Commands::Build(BuildCommandArgs {
+        command: Some(Commands::Build(BuildCommandArgs {
             no_clone: true,
             no_clean: true,
-        }),
+        })),
     };
 
-    if let Commands::Build(args) = &cli.command {
+    if let Some(Commands::Build(args)) = &cli.command {
         build_database(&cli, args).await;
     }
 
@@ -176,7 +176,7 @@ async fn test_match_command_with_mock_valhalla() {
         repo_path: "".to_string(),
         db_path: db_path.to_str().unwrap().to_string(),
         verbose: true,
-        command: Commands::Match,
+        command: Some(Commands::Match),
     };
 
     build_nodes(&cli).await;
@@ -208,7 +208,7 @@ async fn test_match_command_with_missing_valhalla() {
         repo_path: "".to_string(),
         db_path: db_path.to_str().unwrap().to_string(),
         verbose: true,
-        command: Commands::Match,
+        command: Some(Commands::Match),
     };
 
     // Use a port that is NOT the mock server and unlikely to be used
