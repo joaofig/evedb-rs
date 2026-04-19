@@ -5,10 +5,13 @@ use evedb::commands::builders::node::build_nodes;
 use evedb::commands::clean::clean_data;
 use evedb::commands::clone::clone_data;
 use evedb::commands::interactive::interactive;
+use evedb::models::config::Config;
 
 #[tokio::main]
 async fn main() {
     let mut cli = Cli::parse();
+    
+    cli.load_config(&Config::load());
 
     match &cli.command {
         Some(Commands::Build(args)) => {
@@ -30,4 +33,7 @@ async fn main() {
             interactive(&mut cli).await;
         }
     }
+    
+    // Obtain the config and save it
+    cli.get_config().save();
 }

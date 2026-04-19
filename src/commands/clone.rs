@@ -49,3 +49,39 @@ pub fn clone_data(cli: &Cli) -> bool {
         &eved_path,
     ) && clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_path)
 }
+
+
+fn print_file_exists(file_name: &str) {
+    if Path::new(file_name).exists()  {
+        print!("✅ {}", file_name);
+    } else {
+        print!("❌ {}", file_name);
+    }
+}
+
+
+pub fn display_status(cli: &Cli) {
+    let eved_path: String = cli.repo_path.clone() + "/eved";
+    let ved_path: String = cli.repo_path.clone() + "/ved";
+
+    if Path::new(&ved_path).exists() {
+        println!("✅ {}", ved_path);
+
+        let xlsx1 = ved_path.clone() + "/Data/VED_Static_Data_ICE&HEV.xlsx";
+        print_file_exists(xlsx1.as_str());
+
+        let xlsx2 = ved_path.clone() + "/Data/VED_Static_Data_PHEV&EV.xlsx";
+        print_file_exists(xlsx2.as_str());
+    } else {
+        println!("❌ {}", ved_path);
+    }
+
+    if Path::new(&eved_path).exists() {
+        println!("✅ {}", eved_path);
+
+        let zip = eved_path.clone() + "/data/eved.zip";
+        print_file_exists(&zip);
+    } else {
+        println!("❌ {}", eved_path);
+    }
+}

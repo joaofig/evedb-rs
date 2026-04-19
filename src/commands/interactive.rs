@@ -4,6 +4,7 @@ use crate::commands::builders::node::build_nodes;
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
 use inquire::{Select, Text, error::InquireError};
+use crate::commands::status::display_status;
 
 fn get_config_menu_option() -> String {
     loop {
@@ -18,7 +19,7 @@ fn get_config_menu_option() -> String {
 
 fn config_menu(cli: &mut Cli) {
     let mut option: String = "".to_string();
-    
+
     while option != "exit" {
         println!("repository: {}", cli.repo_path);
         println!("database  : {}", cli.db_path);
@@ -28,7 +29,7 @@ fn config_menu(cli: &mut Cli) {
         match option.as_str() {
             "database" => {
                 let database = Text::new("Database path")
-                    .with_default(&cli.db_path)
+                    .with_initial_value(&cli.db_path)
                     .prompt();
                 if let Ok(database) = database {
                     cli.db_path = database;
@@ -36,7 +37,7 @@ fn config_menu(cli: &mut Cli) {
             }
             "repository" => {
                 let repository = Text::new("Repository path")
-                    .with_default(&cli.repo_path)
+                    .with_initial_value(&cli.repo_path)
                     .prompt();
                 if let Ok(repository) = repository {
                     cli.repo_path = repository;
@@ -56,6 +57,7 @@ fn get_menu_option() -> String {
             "clone",
             "config",
             "match",
+            "status",
             "exit",
         ];
         let ans: Result<&str, InquireError> =
@@ -93,6 +95,9 @@ pub async fn interactive(cli: &mut Cli) {
             }
             "match" => {
                 build_nodes(cli).await;
+            }
+            "status" => {
+                display_status(cli);
             }
             "exit" => {
                 if cli.verbose {
