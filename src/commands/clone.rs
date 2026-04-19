@@ -53,9 +53,9 @@ pub fn clone_data(cli: &Cli) -> bool {
 
 fn print_file_exists(file_name: &str) {
     if Path::new(file_name).exists()  {
-        print!("✅ {}", file_name);
+        println!("✅ {}", file_name);
     } else {
-        print!("❌ {}", file_name);
+        println!("❌ {}", file_name);
     }
 }
 
@@ -65,7 +65,7 @@ pub fn display_status(cli: &Cli) {
     let ved_path: String = cli.repo_path.clone() + "/ved";
 
     if Path::new(&ved_path).exists() {
-        println!("✅ {}", ved_path);
+        // println!("✅ {}", ved_path);
 
         let xlsx1 = ved_path.clone() + "/Data/VED_Static_Data_ICE&HEV.xlsx";
         print_file_exists(xlsx1.as_str());
@@ -77,11 +77,12 @@ pub fn display_status(cli: &Cli) {
     }
 
     if Path::new(&eved_path).exists() {
-        println!("✅ {}", eved_path);
+        // println!("✅ {}", eved_path);
 
         let zip = eved_path.clone() + "/data/eved.zip";
         print_file_exists(&zip);
     } else {
         println!("❌ {}", eved_path);
     }
+    println!();
 }
