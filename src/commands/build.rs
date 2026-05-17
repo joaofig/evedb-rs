@@ -11,9 +11,10 @@ pub async fn build_database(cli: &Cli, args: &BuildCommandArgs) {
     }
 
     build_vehicles(cli);
-    build_signals(cli);
-    build_trajectories(cli);
-
+    if build_signals(cli) {
+        build_trajectories(cli);
+    }
+    
     if !args.no_clean {
         clean_data(cli);
     }

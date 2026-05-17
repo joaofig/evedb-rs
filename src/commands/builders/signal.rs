@@ -11,21 +11,29 @@ fn process_signal_file(cli: &Cli, filename: &str) {
     };
 }
 
-pub fn build_signals(cli: &Cli) {
+pub fn build_signals(cli: &Cli) -> bool {
     if cli.verbose {
         println!("Creating the signal table")
     }
     let db: EveDb = EveDb::new(&cli.db_path);
 
-    db.create_signal_table()
-        .expect("Failed to create signal table");
-
-    let filenames = get_signal_filenames(cli).expect("Failed to get signal file names");
-
-    for filename in filenames.iter().progress() {
-        process_signal_file(cli, filename);
+    if db.create_signal_table().is_err() {
+        eprintln!("Failed to create signal table");
+        return false;
     }
 
-    db.create_signal_indexes()
-        .expect("Failed to create signal indexes");
+    if let Ok(filenames) = get_signal_filenames(cli) {
+        for filename in filenames.iter().progress() {
+            process_signal_file(cli, filename);
+        }
+    } else {
+        eprintln!("Failed to get signal file names");
+        return false;
+    }
+
+    if db.create_signal_indexes().is_err() {
+        eprintln!("Failed to create signal indexes");
+        return false;
+    }
+    true
 }
