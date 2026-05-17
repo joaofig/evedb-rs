@@ -2,221 +2,109 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# evedb - AI Assistant Guide
+# evedb
 
-## Project Overview
 evedb is a Rust CLI tool that builds the eVED (Extended Vehicle Energy Dataset) SQLite database from upstream source data repositories. It automates data cloning, extraction, transformation, and loading of vehicle and signal data with H3 geospatial indexing support.
 
 ## Tech Stack
+
 - **Language**: Rust (edition 2024)
 - **Runtime**: Tokio (async)
 - **CLI**: clap with derive macros
 - **Database**: rusqlite with bundled SQLite
 - **Data Processing**: csv, calamine (XLSX), zip, serde
 - **Geospatial**: h3o (H3 hexagonal hierarchical indexing), geo
-- **Time**: chrono, chrono-tz
-- **HTTP**: reqwest
+- **HTTP**: reqwest, valhalla_client
 - **Progress UI**: indicatif
 
-## Project Structure
-```
-src/
-├── main.rs              # Entry point with Tokio runtime
-├── lib.rs               # Library entry point
-├── cli.rs               # Command-line argument definitions (clap)
-├── tools.rs             # Utility functions
-├── commands/
-│   ├── build.rs         # Main build orchestration
-│   ├── clone.rs         # Repository cloning logic
-│   ├── clean.rs         # Cleanup operations
-│   ├── interactive.rs   # Interactive mode
-│   └── builders/        # Entity-specific builders
-│       ├── vehicle.rs   # Vehicle data builder
-│       ├── signal.rs    # Signal data builder
-│       ├── trajectory.rs# Trajectory builder
-│       └── node.rs      # Map-matched node builder
-├── db/
-│   ├── api.rs           # Database connection wrapper
-│   └── evedb.rs         # Schema, tables, indexes, queries
-├── etl/extract/
-│   ├── vehicles.rs      # XLSX vehicle data extraction
-│   └── signals.rs       # CSV signal data extraction from ZIP
-└── models/
-    ├── vehicle.rs       # Vehicle data model
-    ├── signal.rs        # Signal data model (CSV deserializable)
-    └── trajectory.rs    # Trajectory data model
-tests/
-└── integration_tests.rs # Integration tests with mock Valhalla
+## Development Commands
+
+```bash
+cargo build              # debug build
+cargo build --release    # release build
+cargo run -- <command>   # run a command
+cargo test               # all tests
+cargo test <test_name>   # single test by name
+cargo clippy             # lint
+cargo fmt                # format
 ```
 
-## Key Concepts
+### Makefile targets
 
-### Data Flow
-1. **Clone**: Downloads source repositories (eved_dataset, VED)
-2. **Extract Vehicles**: Reads XLSX files for vehicle metadata
-3. **Extract Signals**: Processes CSV files from eVED.zip archive
-4. **Build Trajectories**: Generates trajectory data with H3 indexing
-5. **Index**: Creates database indexes for performance
-6. **Map Match** (optional): Transform trajectories into road-network nodes via Valhalla
-7. **Clean**: Optionally removes cloned repositories
-
-### Database Schema
-The SQLite database contains four main tables:
-- `vehicles`: Static vehicle metadata from XLSX files
-- `signals`: Time-series signal data from CSV files
-- `trajectories`: Derived trajectory data with H3 geospatial indexes
-- `nodes`: Map-matched road network nodes (created via Valhalla)
-
-### H3 Integration
-The project uses H3 hexagonal hierarchical spatial indexing for geospatial queries on trajectory data. H3 indexes are created during the build process to enable efficient location-based queries.
-
-### Map Matching with Valhalla
-The project includes map-matching capabilities using the Valhalla routing engine. This transforms GPS trajectories into road-network-aligned paths and creates node-based representations of vehicle movements.
-
-## Development Conventions
-
-### Code Style
-- Use idiomatic Rust patterns
-- Prefer `anyhow::Result` for error handling in application code
-- Use `?` operator for error propagation
-- Async functions should use Tokio runtime
-
-### Error Handling
-- Return `anyhow::Result<()>` from command functions
-- Provide context with `.context()` for better error messages
-- Don't panic except in truly unrecoverable situations
-
-### Database Operations
-- Use transactions for bulk inserts
-- Prepare statements for repeated queries
-- Close connections explicitly when done
-- Bundle progress feedback with indicatif for long operations
-
-### Data Cleaning
-- Handle NaN values in numeric data
-- Clean semicolons and formatting issues in CSVs
-- Validate data before insertion
+| Target | Description |
+|---|---|
+| `make build` / `make build-r` | Debug / release build with hardcoded paths |
+| `make match` / `make match-r` | Map-matching (debug / release) |
+| `make get-map` | Download Michigan OSM PBF for Valhalla |
+| `make docker-run` / `make podman-run` | Start Valhalla container |
+| `make prune-docker` / `make prune-podman` | Remove container system data |
+| `make flamegraph` / `make samply` | Profiling |
+| `make update` | `cargo update --verbose` |
 
 ## Commands
 
-### Interactive Mode (Recommended)
-```bash
-cargo run -- interactive
-```
-Provides an interactive menu for easier configuration and execution.
+Running with no subcommand defaults to interactive mode.
 
-### Build
-```bash
-cargo run -- build [--no-clone] [--no-clean]
-```
-- Orchestrates the full pipeline
-- `--no-clone`: Skip cloning (use existing repos)
-- `--no-clean`: Keep repos after build
+| Command | Description |
+|---|---|
+| `interactive` | Interactive menu (default when no subcommand given) |
+| `build [--no-clone] [--no-clean]` | Full ETL pipeline |
+| `match` | Map-match trajectories via Valhalla |
+| `clone` | Clone upstream repositories only |
+| `clean` | Remove the repositories folder |
 
-### Match (Map-matching)
-```bash
-cargo run -- match
-```
-- Map-matches trajectories using Valhalla instance
-- Requires `VALHALLA_URL` environment variable (default: http://localhost:8002/)
+**Global flags**: `--repo-path <PATH>`, `--db-path <FILE>`, `--verbose`
 
-### Clone
-```bash
-cargo run -- clone
-```
-- Only clones the upstream repositories
+## Architecture
 
-### Clean
-```bash
-cargo run -- clean
-```
-- Removes the repositories folder
+### Config persistence
 
-### Global Flags
-- `--repo-path <PATH>`: Repository location (default: ./data/eved/repo)
-- `--db-path <FILE>`: Database output path (default: ./data/eved/evedb.db)
-- `--verbose`: Enable verbose logging
+On startup, `main.rs` loads `./evedb.json` (if present) via `models/config::Config::load()` and applies it to the `Cli` struct, overriding CLI defaults for `--repo-path` and `--db-path`. On exit, the current paths are saved back to `./evedb.json`. Interactive mode can update these paths in-session.
 
-## Data Sources
-- **eved_dataset** (Bitbucket): https://bitbucket.org/datarepo/eved_dataset.git
-    - Contains `data/eVED.zip` with signal CSV files
-- **VED** (GitHub): https://github.com/gsoh/VED.git
-    - Contains XLSX files: `Data/VED_Static_Data_ICE&HEV.xlsx`, `Data/VED_Static_Data_PHEV&EV.xlsx`
+### Data flow
 
-## When Working on This Project
+1. **Clone** — git-clones `eved_dataset` (Bitbucket) and `VED` (GitHub) into `repo-path`
+2. **Extract vehicles** — reads XLSX files from the VED repo via `etl/extract/vehicles.rs`
+3. **Extract signals** — reads CSV files from `eVED.zip` inside the eved_dataset repo via `etl/extract/signals.rs`
+4. **Build trajectories** — derives trajectory rows with H3 geospatial indexes (`commands/builders/trajectory.rs`)
+5. **Index** — creates SQLite indexes for query performance
+6. **Map match** (optional) — `commands/builders/node.rs` calls a Valhalla instance; `etl/converters.rs` converts `TrajectoryPoint`/`WayPoint` into Valhalla `ShapePoint` via `From` impls
+7. **Clean** — optionally removes cloned repos
 
-### Before Making Changes
-1. Read relevant source files to understand current implementation
-2. Check models for data structures
-3. Review database schema in `db/evedb.rs`
-4. Understand the command flow in `commands/build.rs`
+### Database schema (four tables)
 
-### Testing and Development Commands
-- Build: `cargo build` (debug) or `cargo build --release`
-- Run: `cargo run -- <command>`
-- Test: `cargo test` (runs unit and integration tests)
-- Lint: `cargo clippy`
-- Format: `cargo fmt`
-- Interactive mode: `cargo run -- interactive` (easiest for configuration)
+- `vehicles` — static vehicle metadata from XLSX
+- `signals` — time-series signal data from CSV
+- `trajectories` — derived data with H3 geospatial indexes
+- `nodes` — map-matched road network nodes (Valhalla)
 
-### Makefile Targets (convenience commands)
-- `make build`: Debug build with hardcoded paths
-- `make build-r`: Release build with hardcoded paths
-- `make match`: Run map-matching (debug)
-- `make match-r`: Run map-matching (release)
-- `make flamegraph`: Profile using cargo-flamegraph
-- `make samply`: Profile using samply
-- `make get-map`: Download sample OSM PBF file for Michigan
-- `make docker-run` / `make podman-run`: Start Valhalla container
-- `make prune-docker` / `make prune-podman`: Cleanup container system
+Schema, DDL, and queries are in `db/evedb.rs`; `db/api.rs` is the connection wrapper.
 
-### Common Tasks
+### Adding a new command
 
-#### Adding a New Field to Database
-1. Update the model in `models/`
-2. Modify schema in `db/evedb.rs`
-3. Update insert/query logic
-4. Update extraction logic in `etl/extract/`
-
-#### Adding a New Command
-1. Define in `cli.rs` as new enum variant
+1. Add enum variant to `cli.rs`
 2. Create handler in `commands/`
-3. Add module to `commands/mod.rs`
+3. Register module in `commands/mod.rs`
 4. Wire up in `main.rs`
 
-#### Modifying Data Extraction
-1. Locate extractor in `etl/extract/`
-2. Update model if data structure changes
-3. Update database insert logic if needed
+### Adding a new database field
 
-## Important Notes
-- Database uses bundled SQLite (no external installation needed)
-- Git must be available on PATH for cloning
-- All async operations use Tokio
-- Progress bars use indicatif for user feedback
-- H3 indexes are built at resolution levels appropriate for the data scale
+1. Update model in `models/`
+2. Modify schema in `db/evedb.rs`
+3. Update insert/query logic in the relevant builder
+4. Update extractor in `etl/extract/`
 
-## TODOs & Known Issues
-- Sample queries and row count validation needed
-- Improved error handling for missing Valhalla instances during `match`.
+## Data Sources
 
-## Dependencies to Be Aware Of
-- `h3o`: H3 geospatial indexing library
-- `rusqlite`: SQLite wrapper with bundled feature
-- `calamine`: Excel file reader
-- `csv`: CSV parsing with serde support
-- `zip`: ZIP archive handling
-- `geo`: Geospatial primitives and algorithms
-- `indicatif`: Terminal progress bars
-- `chrono`/`chrono-tz`: Time and timezone handling
+- **eved_dataset** (Bitbucket): `https://bitbucket.org/datarepo/eved_dataset.git` — contains `data/eVED.zip`
+- **VED** (GitHub): `https://github.com/gsoh/VED.git` — contains `Data/VED_Static_Data_ICE&HEV.xlsx` and `Data/VED_Static_Data_PHEV&EV.xlsx`
 
-## Environment Variables and Requirements
-- `VALHALLA_URL`: URL for Valhalla instance (default: http://localhost:8002/)
-- Minimum Rust: Stable with edition 2024 support
-- Required tools: Git (must be on PATH)
-- Optional tools: Docker/Podman (for Valhalla), cargo-flamegraph, samply (for profiling)
+## Environment Variables
+
+- `VALHALLA_URL`: Valhalla instance URL (default: `http://localhost:8002/`)
 
 ## Testing
-- Unit tests: Cover ETL and database layers
-- Integration tests: Full build and match command pipelines with mock Valhalla server
-- Run tests: `cargo test`
+
+- Integration tests live in `tests/integration_tests.rs` and use a mock Valhalla server
+- Unit tests are co-located with source in `etl/` and `db/` modules
+- Git must be on `PATH` for clone-related tests to pass

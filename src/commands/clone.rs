@@ -20,20 +20,23 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
         println!("Cloning a repository from {}", clone_url);
     }
 
-    // Execute the clone command
-    let output = cmd.output().expect("Failed to execute git clone");
-
-    if output.status.success() {
-        if cli.verbose {
-            println!("Repository cloned successfully to {}", destination);
+    let output = cmd.output();
+    if let Ok(output) = output {
+        if output.status.success() {
+            if cli.verbose {
+                println!("Repository cloned successfully to {}", destination);
+            }
+        } else {
+            eprintln!(
+                "Error cloning repository: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
+        return output.status.success()
     } else {
-        eprintln!(
-            "Error cloning repository: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        eprintln!("Failed to execute git clone");
     }
-    output.status.success()
+    false
 }
 
 pub fn clone_data(cli: &Cli) -> bool {

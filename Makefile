@@ -60,3 +60,6 @@ prune-docker:
 
 prune-podman:
 	podman system prune --all --force --volumes
+
+update:
+	cargo update --verbose
