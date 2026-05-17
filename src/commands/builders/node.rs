@@ -32,6 +32,15 @@ async fn map_match(
         .map_err(|e| anyhow!("Failed to map match: {:?}", e))
 }
 
+fn build_node(trajectory_id: i64, pt: &ShapePoint) -> Node {
+    Node::builder()
+        .trajectory_id(trajectory_id)
+        .latitude(pt.lat)
+        .longitude(pt.lon)
+        .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
+        .build()
+}
+
 pub async fn build_nodes(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
@@ -72,7 +81,10 @@ pub async fn build_nodes(cli: &Cli) {
         println!("Creating the node table")
     }
 
-    db.create_node_table().expect("Failed to create node table");
+    if db.create_node_table().is_err() {
+        eprintln!("Failed to create node table");
+        return;
+    }
 
     if cli.verbose {
         println!("Populating the node table")
@@ -80,46 +92,40 @@ pub async fn build_nodes(cli: &Cli) {
 
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
     for trajectory_id in trajectory_ids.iter().progress() {
-        let way_points = db
-            .get_way_points(*trajectory_id)
-            .expect("Failed to get way points");
-        let locations = way_points.iter().map(|p: &WayPoint| p.into());
+        if let Ok(way_points) = db.get_way_points(*trajectory_id) {
+            let locations = way_points.iter().map(|p: &WayPoint| p.into());
 
-        let result_trip = map_match(&valhalla, locations).await;
-        match result_trip {
-            Ok(trip) => {
-                if let Some(warnings) = trip.warnings {
-                    let message = format!("{:?}", warnings);
-                    if db.insert_match_error(*trajectory_id, &message).is_err() {
-                        eprintln!("{}", message);
-                    }
-                } else {
-                    let nodes = trip.legs.iter().flat_map(|leg| leg.shape.iter()).map(|pt| {
-                        Node::builder()
-                            .trajectory_id(*trajectory_id)
-                            .latitude(pt.lat)
-                            .longitude(pt.lon)
-                            .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
-                            .build()
-                    });
-                    let result = db.insert_nodes(nodes);
-                    if let Err(e) = result {
-                        let message = format!(
-                            "Failed to insert nodes for trajectory {}: {:?}",
-                            trajectory_id, e
-                        );
-                        if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                            eprintln!("{}: {}", message, e);
+            match map_match(&valhalla, locations).await {
+                Ok(trip) => {
+                    if let Some(warnings) = trip.warnings {
+                        let message = format!("{:?}", warnings);
+                        if db.insert_match_error(*trajectory_id, &message).is_err() {
+                            eprintln!("{}", message);
+                        }
+                    } else {
+                        let nodes = trip.legs.iter().flat_map(|leg| leg.shape.iter()).map(|pt| {
+                            build_node(*trajectory_id, pt)
+                        });
+                        if let Err(e) = db.insert_nodes(nodes) {
+                            let message = format!(
+                                "Failed to insert nodes for trajectory {}: {:?}",
+                                trajectory_id, e
+                            );
+                            if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
+                                eprintln!("{}: {}", message, e);
+                            }
                         }
                     }
                 }
-            }
-            Err(e) => {
-                let message = format!("Failed to map match trajectory {}: {:?}", trajectory_id, e);
-                if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                    eprintln!("{}: {}", message, e);
+                Err(e) => {
+                    let message = format!("Failed to map match trajectory {}: {:?}", trajectory_id, e);
+                    if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
+                        eprintln!("{}: {}", message, e);
+                    }
                 }
             }
+        } else {
+            eprintln!("Failed to get way points for trajectory {}", trajectory_id);
         }
     }
 }
