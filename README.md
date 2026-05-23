@@ -119,7 +119,7 @@ cargo test
 ## Data Sources
 
 The build process expects:
-- **eved_dataset**: `{repo_path}/eved/data/eved.zip`
+- **eved_dataset**: `{repo_path}/eved/data/eVED.zip`
 - **VED**: `{repo_path}/ved/Data/VED_Static_Data_*.xlsx`
 
 ## License
