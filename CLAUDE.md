@@ -76,10 +76,10 @@ On startup, `main.rs` loads `./evedb.json` (if present) via `models/config::Conf
 
 ### Database schema (four tables)
 
-- `vehicles` — static vehicle metadata from XLSX
-- `signals` — time-series signal data from CSV
-- `trajectories` — derived data with H3 geospatial indexes
-- `nodes` — map-matched road network nodes (Valhalla)
+- `vehicle` — static vehicle metadata from XLSX
+- `signal` — time-series signal data from CSV
+- `trajectory` — derived data with H3 geospatial indexes
+- `node` — map-matched road network nodes (Valhalla)
 
 Schema, DDL, and queries are in `db/evedb.rs`; `db/api.rs` is the connection wrapper.
 
