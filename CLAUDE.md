@@ -12,10 +12,13 @@ evedb is a Rust CLI tool that builds the eVED (Extended Vehicle Energy Dataset) 
 - **Runtime**: Tokio (async)
 - **CLI**: clap with derive macros
 - **Database**: rusqlite with bundled SQLite
-- **Data Processing**: csv, calamine (XLSX), zip, serde
+- **Data Processing**: csv, calamine (XLSX), zip, serde, rayon
 - **Geospatial**: h3o (H3 hexagonal hierarchical indexing), geo
-- **HTTP**: reqwest, valhalla_client
+- **HTTP**: valhalla_client
 - **Progress UI**: indicatif
+- **Interactive UI**: inquire
+- **Builders**: bon (derive macros)
+- **Error Handling**: anyhow
 
 ## Development Commands
 
