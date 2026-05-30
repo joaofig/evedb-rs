@@ -381,6 +381,15 @@ impl EveDb {
             .map_err(|e| anyhow!("Failed to create node table: {:?}", e))
     }
 
+    pub fn create_node_indexes(&self) -> Result<usize> {
+        let conn = self.connect()?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS node_h3_idx ON trajectory (h3_12);",
+            (),
+        )
+            .map_err(|e| anyhow!("Failed to create node indexes: {:?}", e))
+    }
+
     pub fn insert_match_error(&self, trajectory_id: i64, match_error: &str) -> Result<usize> {
         let conn = self.connect()?;
         let sql = text_block! {
@@ -498,6 +507,8 @@ mod tests {
             .h3_12(12345)
             .build()];
         db.insert_nodes(nodes.into_iter()).unwrap();
+
+        db.create_trajectory_indexes().unwrap();
 
         let conn = db.connect().unwrap();
         let count: i64 = conn
