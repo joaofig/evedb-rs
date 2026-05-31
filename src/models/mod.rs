@@ -3,3 +3,4 @@ pub mod signal;
 pub mod trajectory;
 pub mod vehicle;
 pub mod config;
+mod segment;

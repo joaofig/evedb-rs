@@ -41,6 +41,23 @@ fn build_node(trajectory_id: i64, pt: &ShapePoint) -> Node {
         .build()
 }
 
+fn create_tables(cli: &Cli, db: &EveDb) -> bool {
+    if cli.verbose {
+        println!("Creating the node table")
+    }
+
+    if db.create_node_table().is_err() {
+        eprintln!("Failed to create node table");
+        return false;
+    }
+
+    if db.create_node_indexes().is_err() {
+        eprintln!("Failed to create node indexes");
+        return false ;
+    }
+    true
+}
+
 pub async fn build_nodes(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
@@ -77,13 +94,8 @@ pub async fn build_nodes(cli: &Cli) {
         }
     }
 
-    if cli.verbose {
-        println!("Creating the node table")
-    }
-
-    if db.create_node_table().is_err() {
-        eprintln!("Failed to create node table");
-        return;
+    if !create_tables(cli, &db) {
+        return
     }
 
     if cli.verbose {

@@ -36,7 +36,7 @@ impl EveDb {
 
         let sql = "
             CREATE TABLE IF NOT EXISTS vehicle (
-                vehicle_id    INTEGER primary key AUTOINCREMENT,
+                vehicle_id    INTEGER PRIMARY KEY,
                 vehicle_type  TEXT,
                 vehicle_class TEXT,
                 engine        TEXT,
@@ -54,13 +54,13 @@ impl EveDb {
         conn.execute("DROP TABLE IF EXISTS signal;", ())?;
         let sql = text_block! {
         "create table if not exists signal ("
-        "   signal_id          INTEGER primary key AUTOINCREMENT,"
-        "   day_num            DOUBLE  not null,"
-        "   vehicle_id         INTEGER not null,"
-        "   trip_id            INTEGER not null,"
-        "   time_stamp         INTEGER not null,"
-        "   latitude           DOUBLE  not null,"
-        "   longitude          DOUBLE  not null,"
+        "   signal_id          INTEGER PRIMARY KEY,"
+        "   day_num            DOUBLE  NOT NULL,"
+        "   vehicle_id         INTEGER NOT NULL,"
+        "   trip_id            INTEGER NOT NULL,"
+        "   time_stamp         INTEGER NOT NULL,"
+        "   latitude           DOUBLE  NOT NULL,"
+        "   longitude          DOUBLE  NOT NULL,"
         "   speed              DOUBLE,"
         "   maf                DOUBLE,"
         "   rpm                DOUBLE,"
@@ -226,7 +226,7 @@ impl EveDb {
 
         let sql = text_block! {
         "CREATE TABLE IF NOT EXISTS main.trajectory ("
-        "    traj_id     INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "    traj_id     INTEGER PRIMARY KEY,"
         "    vehicle_id  INTEGER NOT NULL,"
         "    trip_id     INTEGER NOT NULL,"
         "    length_m    DOUBLE,"
@@ -244,6 +244,7 @@ impl EveDb {
         let conn = self.connect()?;
 
         self.create_trajectory_table()?;
+        self.create_trajectory_indexes()?;
 
         let sql = text_block! {
             "INSERT INTO trajectory (vehicle_id, trip_id)"
@@ -369,7 +370,7 @@ impl EveDb {
         conn.execute("DROP TABLE IF EXISTS main.node;", ())?;
         let sql = text_block! {
         "CREATE TABLE IF NOT EXISTS node ("
-        "    node_id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "    node_id         INTEGER PRIMARY KEY,"
         "    traj_id         INTEGER NOT NULL,"
         "    latitude        DOUBLE,"
         "    longitude       DOUBLE,"
@@ -384,12 +385,42 @@ impl EveDb {
     pub fn create_node_indexes(&self) -> Result<usize> {
         let conn = self.connect()?;
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS node_h3_idx ON trajectory (h3_12);",
+            "CREATE INDEX IF NOT EXISTS node_h3_idx ON node (h3_12);",
             (),
         )
             .map_err(|e| anyhow!("Failed to create node indexes: {:?}", e))
     }
 
+    pub fn create_edge_table(&self) -> Result<usize> {
+        let conn = self.connect()?;
+
+        conn.execute("DROP TABLE IF EXISTS main.edge;", ())?;
+        let sql = text_block! {
+        "CREATE TABLE IF NOT EXISTS edge ("
+            "edge_id         INTEGER PRIMARY KEY,"
+            "lat_ini         DOUBLE,"
+            "lon_ini         DOUBLE,"
+            "lat_end         DOUBLE,"
+            "lon_end         DOUBLE,"
+            "h3_12_ini       INTEGER,"
+            "h3_12_end       INTEGER,"
+            "length_m        DOUBLE,"
+            "heading_deg     DOUBLE,"
+            "edge_hash       TEXT,"
+        ");" };
+
+        conn.execute(sql, ())
+            .map_err(|e| anyhow!("Failed to create node table: {:?}", e))
+    }
+
+    pub fn create_edge_indexes(&self) -> Result<usize> {
+        let conn = self.connect()?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS edge_hash_idx ON edge (hash);",
+            (),
+        )
+            .map_err(|e| anyhow!("Failed to create edge indexes: {:?}", e))
+    }
     pub fn insert_match_error(&self, trajectory_id: i64, match_error: &str) -> Result<usize> {
         let conn = self.connect()?;
         let sql = text_block! {
