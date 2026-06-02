@@ -4,3 +4,4 @@ pub mod trajectory;
 pub mod vehicle;
 pub mod config;
 mod segment;
+mod edge;
