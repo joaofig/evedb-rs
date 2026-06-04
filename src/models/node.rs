@@ -1,6 +1,6 @@
 use bon::Builder;
 
-#[derive(Builder)]
+#[derive(Builder, Debug)]
 pub struct Node {
     pub id: i64,
     pub latitude: f64,

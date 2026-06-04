@@ -8,6 +8,16 @@ use geo::line_measures::LengthMeasurable;
 use geo::{Haversine, LineString};
 use indicatif::ProgressIterator;
 
+fn get_date_time(
+    base_dt: DateTime<chrono_tz::Tz>,
+    day_num: i64,
+    time_stamp: i64
+) -> DateTime<chrono_tz::Tz> {
+    base_dt
+        + Duration::days(day_num)
+        + Duration::milliseconds(time_stamp)
+}
+
 fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
     let base_dt: DateTime<chrono_tz::Tz> = Detroit.with_ymd_and_hms(2017, 11, 1, 0, 0, 0).unwrap();
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
@@ -29,12 +39,8 @@ fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
         let length_m = line_string.length(&Haversine); // Haversine.length(&line_string);
         let day_num = (trajectory_points[0].day_num as i64) - 1;
         let last = trajectory_points.len() - 1;
-        let dt_ini: DateTime<chrono_tz::Tz> = base_dt
-            + Duration::days(day_num)
-            + Duration::milliseconds(trajectory_points[0].time_stamp);
-        let dt_end: DateTime<chrono_tz::Tz> = base_dt
-            + Duration::days(day_num)
-            + Duration::seconds(trajectory_points[last].time_stamp);
+        let dt_ini = get_date_time(base_dt, day_num, trajectory_points[0].time_stamp);
+        let dt_end = get_date_time(base_dt, day_num, trajectory_points[last].time_stamp);
         let h3_ini = lat_lng_to_h3_12(
             trajectory_points[0].latitude,
             trajectory_points[0].longitude,
@@ -58,27 +64,6 @@ fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {
         updates.push(update);
     }
     updates
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    #[test]
-    fn test_get_trajectory_updates_empty() {
-        let db_path = "test_updates_empty.db";
-        if std::path::Path::new(db_path).exists() {
-            fs::remove_file(db_path).unwrap();
-        }
-        let db = EveDb::new(db_path);
-        db.create_trajectory_table().unwrap();
-
-        let updates = get_trajectory_updates(&db);
-        assert_eq!(updates.len(), 0);
-
-        fs::remove_file(db_path).unwrap();
-    }
 }
 
 pub fn build_trajectories(cli: &Cli) {
@@ -107,5 +92,26 @@ pub fn build_trajectories(cli: &Cli) {
             Err(e) => eprintln!("Failed to create trajectory indexes {}", e),
         },
         Err(e) => eprintln!("Failed to update trajectory records {}", e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_get_trajectory_updates_empty() {
+        let db_path = "test_updates_empty.db";
+        if std::path::Path::new(db_path).exists() {
+            fs::remove_file(db_path).unwrap();
+        }
+        let db = EveDb::new(db_path);
+        db.create_trajectory_table().unwrap();
+
+        let updates = get_trajectory_updates(&db);
+        assert_eq!(updates.len(), 0);
+
+        fs::remove_file(db_path).unwrap();
     }
 }

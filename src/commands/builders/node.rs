@@ -6,9 +6,10 @@ use crate::tools::lat_lng_to_h3_12;
 use anyhow::{Result, anyhow};
 use indicatif::ProgressIterator;
 use url::Url;
-use valhalla_client::Valhalla;
+use valhalla_client::{Error, Valhalla};
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
+use valhalla_client::status::Response;
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 
 async fn map_match(
@@ -34,9 +35,10 @@ async fn map_match(
 
 fn build_node(trajectory_id: i64, pt: &ShapePoint) -> Node {
     Node::builder()
-        .trajectory_id(trajectory_id)
+        .id(trajectory_id)
         .latitude(pt.lat)
         .longitude(pt.lon)
+        .altitude(0.0)
         .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
         .build()
 }
@@ -51,48 +53,63 @@ fn create_tables(cli: &Cli, db: &EveDb) -> bool {
         return false;
     }
 
+    if db.create_edge_table().is_err() {
+        eprintln!("Failed to create edge table");
+        return false;
+    }
+
     if db.create_node_indexes().is_err() {
         eprintln!("Failed to create node indexes");
-        return false ;
+        return false;
+    }
+
+    if db.create_edge_indexes().is_err() {
+        eprintln!("Failed to create edge indexes");
+        return false;
     }
     true
 }
 
-pub async fn build_nodes(cli: &Cli) {
-    let db: EveDb = EveDb::new(&cli.db_path);
-
-    let valhalla_url =
-        std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
-    let valhalla_url = match Url::parse(&valhalla_url) {
-        Ok(url) => url,
-        Err(e) => {
-            eprintln!("Invalid Valhalla URL '{}': {}", valhalla_url, e);
-            return;
-        }
-    };
+async fn connect_to_valhalla(cli: &Cli, valhalla_url: &Url) -> std::result::Result<Valhalla, Error> {
     let valhalla = Valhalla::new(valhalla_url.clone());
 
     if cli.verbose {
         println!("Checking Valhalla instance at {}", valhalla_url);
     }
 
-    match valhalla
-        .status(valhalla_client::status::Manifest::default())
-        .await
-    {
-        Ok(_) => {
-            if cli.verbose {
-                println!("Valhalla instance is up and running");
-            }
-        }
+    valhalla.status(valhalla_client::status::Manifest::default()).await?;
+    Ok(valhalla)
+}
+
+fn get_valhalla_url() -> Result<Url> {
+    let url = std::env::var("VALHALLA_URL")
+        .unwrap_or_else(|_| "http://localhost:8002/".to_string());
+    Url::parse(&url).map_err(|e| anyhow!("Invalid Valhalla URL '{}': {}", url, e))
+}
+
+pub async fn build_nodes(cli: &Cli) {
+    let db: EveDb = EveDb::new(&cli.db_path);
+
+    let valhalla_url = match get_valhalla_url() {
+        Ok(url) => url,
         Err(e) => {
-            eprintln!(
-                "Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.",
-                valhalla_url, e
-            );
+            eprintln!("Invalid Valhalla URL: {}", e);
             return;
         }
+    };
+
+    // Check if we can connect to Valhalla
+    let valhalla_result = connect_to_valhalla(cli, &valhalla_url).await;
+
+    if let Err(e) = valhalla_result {
+        eprintln!(
+            "Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.",
+            valhalla_url, e
+        );
+        return;
     }
+    // The server is there!
+    let valhalla = valhalla_result.unwrap();
 
     if !create_tables(cli, &db) {
         return
