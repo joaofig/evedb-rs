@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -23,7 +23,10 @@ impl Config {
             let json = std::fs::read_to_string("./evedb.json").unwrap();
             serde_json::from_str(&json).unwrap()
         } else {
-            Self::new("./data/eved/repo".to_string(), "./data/eved/evedb.db".to_string())
+            Self::new(
+                "./data/eved/repo".to_string(),
+                "./data/eved/evedb.db".to_string(),
+            )
         }
     }
 }

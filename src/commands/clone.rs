@@ -32,7 +32,7 @@ fn clone_repo(cli: &Cli, clone_url: &str, destination: &str) -> bool {
                 String::from_utf8_lossy(&output.stderr)
             );
         }
-        return output.status.success()
+        return output.status.success();
     } else {
         eprintln!("Failed to execute git clone");
     }
@@ -53,15 +53,13 @@ pub fn clone_data(cli: &Cli) -> bool {
     ) && clone_repo(cli, "https://github.com/gsoh/VED.git", &ved_path)
 }
 
-
 fn print_file_exists(file_name: &str) {
-    if Path::new(file_name).exists()  {
+    if Path::new(file_name).exists() {
         println!("✅ {}", file_name);
     } else {
         println!("❌ {}", file_name);
     }
 }
-
 
 pub fn display_status(cli: &Cli) {
     let eved_path: String = cli.repo_path.clone() + "/eved";

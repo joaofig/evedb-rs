@@ -1,5 +1,5 @@
-pub mod vehicle;
+pub mod edge;
+pub mod node;
 pub mod signal;
 pub mod trajectory;
-pub mod node;
-pub mod edge;
+pub mod vehicle;

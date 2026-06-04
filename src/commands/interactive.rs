@@ -3,13 +3,14 @@ use crate::commands::build::build_database;
 use crate::commands::builders::node::build_nodes;
 use crate::commands::clean::clean_data;
 use crate::commands::clone::clone_data;
-use inquire::{Select, Text, error::InquireError};
 use crate::commands::status::display_status;
+use inquire::{Select, Text, error::InquireError};
 
 fn get_config_menu_option() -> String {
     loop {
         let options: Vec<&str> = vec!["database", "repository", "exit"];
-        let ans: Result<&str, InquireError> = Select::new("Please select an option:", options).prompt();
+        let ans: Result<&str, InquireError> =
+            Select::new("Please select an option:", options).prompt();
 
         if let Ok(option) = ans {
             return option.to_string();
@@ -52,13 +53,7 @@ fn config_menu(cli: &mut Cli) {
 fn get_menu_option() -> String {
     loop {
         let options: Vec<&str> = vec![
-            "build",
-            "clean",
-            "clone",
-            "config",
-            "match",
-            "status",
-            "exit",
+            "build", "clean", "clone", "config", "match", "status", "exit",
         ];
         let ans: Result<&str, InquireError> =
             Select::new("Please select an option:", options).prompt();

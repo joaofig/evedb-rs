@@ -9,7 +9,6 @@ pub struct Node {
     pub h3_12: i64,
 }
 
-
 #[derive(Builder, Debug)]
 pub struct TrajectoryNode {
     pub id: i64,

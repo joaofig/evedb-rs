@@ -6,11 +6,11 @@ use crate::tools::lat_lng_to_h3_12;
 use anyhow::{Result, anyhow};
 use indicatif::ProgressIterator;
 use url::Url;
-use valhalla_client::{Error, Valhalla};
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
 use valhalla_client::status::Response;
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
+use valhalla_client::{Error, Valhalla};
 
 async fn map_match(
     valhalla: &Valhalla,
@@ -70,20 +70,25 @@ fn create_tables(cli: &Cli, db: &EveDb) -> bool {
     true
 }
 
-async fn connect_to_valhalla(cli: &Cli, valhalla_url: &Url) -> std::result::Result<Valhalla, Error> {
+async fn connect_to_valhalla(
+    cli: &Cli,
+    valhalla_url: &Url,
+) -> std::result::Result<Valhalla, Error> {
     let valhalla = Valhalla::new(valhalla_url.clone());
 
     if cli.verbose {
         println!("Checking Valhalla instance at {}", valhalla_url);
     }
 
-    valhalla.status(valhalla_client::status::Manifest::default()).await?;
+    valhalla
+        .status(valhalla_client::status::Manifest::default())
+        .await?;
     Ok(valhalla)
 }
 
 fn get_valhalla_url() -> Result<Url> {
-    let url = std::env::var("VALHALLA_URL")
-        .unwrap_or_else(|_| "http://localhost:8002/".to_string());
+    let url =
+        std::env::var("VALHALLA_URL").unwrap_or_else(|_| "http://localhost:8002/".to_string());
     Url::parse(&url).map_err(|e| anyhow!("Invalid Valhalla URL '{}': {}", url, e))
 }
 
@@ -112,7 +117,7 @@ pub async fn build_nodes(cli: &Cli) {
     let valhalla = valhalla_result.unwrap();
 
     if !create_tables(cli, &db) {
-        return
+        return;
     }
 
     if cli.verbose {
@@ -132,9 +137,11 @@ pub async fn build_nodes(cli: &Cli) {
                             eprintln!("{}", message);
                         }
                     } else {
-                        let nodes = trip.legs.iter().flat_map(|leg| leg.shape.iter()).map(|pt| {
-                            build_node(*trajectory_id, pt)
-                        });
+                        let nodes = trip
+                            .legs
+                            .iter()
+                            .flat_map(|leg| leg.shape.iter())
+                            .map(|pt| build_node(*trajectory_id, pt));
                         if let Err(e) = db.insert_nodes(nodes) {
                             let message = format!(
                                 "Failed to insert nodes for trajectory {}: {:?}",
@@ -147,7 +154,8 @@ pub async fn build_nodes(cli: &Cli) {
                     }
                 }
                 Err(e) => {
-                    let message = format!("Failed to map match trajectory {}: {:?}", trajectory_id, e);
+                    let message =
+                        format!("Failed to map match trajectory {}: {:?}", trajectory_id, e);
                     if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
                         eprintln!("{}: {}", message, e);
                     }

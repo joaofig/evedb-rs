@@ -1,9 +1,9 @@
-use anyhow::anyhow;
-use indicatif::ProgressIterator;
-use rusqlite::{params, Error, Row};
-use text_block_macros::text_block;
 use crate::db::evedb::EveDb;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
+use anyhow::anyhow;
+use indicatif::ProgressIterator;
+use rusqlite::{Error, Row, params};
+use text_block_macros::text_block;
 
 pub fn insert_trajectories(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
@@ -12,9 +12,9 @@ pub fn insert_trajectories(db: &EveDb) -> anyhow::Result<usize> {
     db.create_trajectory_indexes()?;
 
     let sql = text_block! {
-            "INSERT INTO trajectory (vehicle_id, trip_id)"
-            "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
-        };
+        "INSERT INTO trajectory (vehicle_id, trip_id)"
+        "    SELECT DISTINCT vehicle_id, trip_id FROM signal;"
+    };
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to insert trajectories: {:?}", e))
 }
@@ -37,14 +37,14 @@ pub fn update_trajectories(db: &EveDb, updates: &[TrajectoryUpdate]) -> anyhow::
 
     for update in updates.iter().progress() {
         let params = params!(
-                update.length_m,
-                update.duration_s,
-                update.dt_ini,
-                update.dt_end,
-                update.h3_12_ini as i64,
-                update.h3_12_end as i64,
-                update.trajectory_id
-            );
+            update.length_m,
+            update.duration_s,
+            update.dt_ini,
+            update.dt_end,
+            update.h3_12_ini as i64,
+            update.h3_12_end as i64,
+            update.trajectory_id
+        );
         tx.execute(&sql, params)?;
     }
     tx.commit()
@@ -54,8 +54,8 @@ pub fn update_trajectories(db: &EveDb, updates: &[TrajectoryUpdate]) -> anyhow::
 pub fn get_trajectory_ids(db: &EveDb) -> anyhow::Result<Vec<i64>> {
     let conn = db.connect()?;
     let sql = text_block! {
-            "SELECT traj_id FROM trajectory"
-        };
+        "SELECT traj_id FROM trajectory"
+    };
     let mut stmt = conn.prepare(sql)?;
     let traj_ids = stmt
         .query_map([], |row| row.get(0))?
@@ -63,20 +63,23 @@ pub fn get_trajectory_ids(db: &EveDb) -> anyhow::Result<Vec<i64>> {
     Ok(traj_ids)
 }
 
-pub fn get_trajectory_points(db: &EveDb, trajectory_id: i64) -> anyhow::Result<Vec<TrajectoryPoint>> {
+pub fn get_trajectory_points(
+    db: &EveDb,
+    trajectory_id: i64,
+) -> anyhow::Result<Vec<TrajectoryPoint>> {
     let conn = db.connect()?;
     let sql = text_block! {
-            "select     s.signal_id "
-            ",          s.vehicle_id "
-            ",          s.day_num "
-            ",          s.time_stamp "
-            ",          s.match_latitude "
-            ",          s.match_longitude "
-            "from       signal s "
-            "inner join trajectory t on s.vehicle_id = t.vehicle_id and  s.trip_id = t.trip_id "
-            "where      t.traj_id = ?1 "
-            "order by   s.time_stamp "
-        };
+        "select     s.signal_id "
+        ",          s.vehicle_id "
+        ",          s.day_num "
+        ",          s.time_stamp "
+        ",          s.match_latitude "
+        ",          s.match_longitude "
+        "from       signal s "
+        "inner join trajectory t on s.vehicle_id = t.vehicle_id and  s.trip_id = t.trip_id "
+        "where      t.traj_id = ?1 "
+        "order by   s.time_stamp "
+    };
     let mut stmt = conn.prepare(sql)?;
     let points = stmt.query_map([trajectory_id], |row: &Row| {
         Ok(TrajectoryPoint {
@@ -95,15 +98,15 @@ pub fn get_trajectory_points(db: &EveDb, trajectory_id: i64) -> anyhow::Result<V
 pub fn get_way_points(db: &EveDb, trajectory_id: i64) -> anyhow::Result<Vec<WayPoint>> {
     let conn = db.connect()?;
     let sql = text_block! {
-            "select     s.latitude as lat"
-            ",          s.longitude as lon"
-            ",          min(s.time_stamp) / 1000 as time"
-            "from       signal s"
-            "inner join trajectory t on s.vehicle_id = t.vehicle_id and s.trip_id = t.trip_id"
-            "where      t.traj_id = ?1"
-            "group by   s.latitude, s.longitude"
-            "order by   time;"
-        };
+        "select     s.latitude as lat"
+        ",          s.longitude as lon"
+        ",          min(s.time_stamp) / 1000 as time"
+        "from       signal s"
+        "inner join trajectory t on s.vehicle_id = t.vehicle_id and s.trip_id = t.trip_id"
+        "where      t.traj_id = ?1"
+        "group by   s.latitude, s.longitude"
+        "order by   time;"
+    };
     let mut stmt = conn.prepare(sql)?;
     let points = stmt.query_map([trajectory_id], |row: &Row| {
         Ok(WayPoint {

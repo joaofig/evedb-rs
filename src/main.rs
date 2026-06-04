@@ -10,7 +10,7 @@ use evedb::models::config::Config;
 #[tokio::main]
 async fn main() {
     let mut cli = Cli::parse();
-    
+
     cli.load_config(&Config::load());
 
     match &cli.command {
@@ -33,7 +33,7 @@ async fn main() {
             interactive(&mut cli).await;
         }
     }
-    
+
     // Obtain the config and save it
     cli.get_config().save();
 }

@@ -11,11 +11,9 @@ use indicatif::ProgressIterator;
 fn get_date_time(
     base_dt: DateTime<chrono_tz::Tz>,
     day_num: i64,
-    time_stamp: i64
+    time_stamp: i64,
 ) -> DateTime<chrono_tz::Tz> {
-    base_dt
-        + Duration::days(day_num)
-        + Duration::milliseconds(time_stamp)
+    base_dt + Duration::days(day_num) + Duration::milliseconds(time_stamp)
 }
 
 fn get_trajectory_updates(db: &EveDb) -> Vec<TrajectoryUpdate> {

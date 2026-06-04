@@ -1,5 +1,5 @@
-use clap::{Args, Parser, Subcommand};
 use crate::models::config::Config;
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Clone, Debug)]
 #[command(name = "MyApp")]
@@ -21,14 +21,14 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn load_config(& mut self, cfg: &Config) {
+    pub fn load_config(&mut self, cfg: &Config) {
         self.db_path = cfg.db_path.clone();
         self.repo_path = cfg.repo_path.clone();
     }
-    
+
     pub fn get_config(&self) -> Config {
         Config::new(self.repo_path.clone(), self.db_path.clone())
-    }   
+    }
 }
 
 #[derive(Subcommand, Clone, Debug)]

@@ -1,5 +1,5 @@
-use anyhow::anyhow;
 use crate::db::evedb::EveDb;
+use anyhow::anyhow;
 
 pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;

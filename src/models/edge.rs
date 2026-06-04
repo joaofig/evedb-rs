@@ -8,7 +8,6 @@ pub struct Edge {
     pub length_m: i64,
 }
 
-
 #[derive(Builder, Debug)]
 pub struct TrajectoryEdge {
     pub id: i64,

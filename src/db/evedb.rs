@@ -1,16 +1,14 @@
 use crate::db::api::SqliteDb;
+use crate::db::ddl;
+use crate::db::dml;
 use crate::models::node::Node;
 use crate::models::signal::CsvSignal;
 use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
 use crate::models::vehicle::Vehicle;
-use crate::tools::lat_lng_to_h3_12;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use csv::DeserializeRecordsIter;
 use indicatif::ProgressIterator;
-use rusqlite::{Connection, Error, Row, Transaction, params};
-use text_block_macros::text_block;
-use crate::db::ddl;
-use crate::db::dml;
+use rusqlite::{Connection, Transaction};
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -47,7 +45,7 @@ impl EveDb {
     }
 
     pub fn insert_signal(&self, tx: &mut Transaction<'_>, signal: &CsvSignal) -> Result<usize> {
-        dml::signal::insert_signal(self, tx, signal)
+        dml::signal::insert_signal(tx, signal)
     }
 
     pub fn create_signal_indexes(&self) -> Result<usize> {
@@ -183,13 +181,15 @@ mod tests {
 
         db.create_node_table().unwrap();
 
-        let nodes = vec![Node::builder()
-            .id(1)
-            .latitude(40.0)
-            .longitude(-70.0)
-            .altitude(0.0)
-            .h3_12(12345)
-            .build()];
+        let nodes = vec![
+            Node::builder()
+                .id(1)
+                .latitude(40.0)
+                .longitude(-70.0)
+                .altitude(0.0)
+                .h3_12(12345)
+                .build(),
+        ];
         db.insert_nodes(nodes.into_iter()).unwrap();
 
         db.create_trajectory_indexes().unwrap();

@@ -12,7 +12,7 @@ pub fn build_vehicles(cli: &Cli) -> bool {
         eprintln!("Failed to create vehicle table");
         return false;
     }
-    
+
     if db.insert_vehicles(vehicles).is_err() {
         eprintln!("Failed to insert vehicle records");
         return false;
