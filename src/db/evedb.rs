@@ -7,8 +7,7 @@ use crate::models::trajectory::{TrajectoryPoint, TrajectoryUpdate, WayPoint};
 use crate::models::vehicle::Vehicle;
 use anyhow::Result;
 use csv::DeserializeRecordsIter;
-use indicatif::ProgressIterator;
-use rusqlite::{Connection, Transaction};
+use rusqlite::Connection;
 
 pub struct EveDb {
     pub db: SqliteDb,
@@ -42,10 +41,6 @@ impl EveDb {
         signals: DeserializeRecordsIter<'_, &[u8], CsvSignal>,
     ) -> Result<usize> {
         dml::signal::insert_signals(self, signals)
-    }
-
-    pub fn insert_signal(&self, tx: &mut Transaction<'_>, signal: &CsvSignal) -> Result<usize> {
-        dml::signal::insert_signal(tx, signal)
     }
 
     pub fn create_signal_indexes(&self) -> Result<usize> {

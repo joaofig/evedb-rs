@@ -6,10 +6,7 @@ use csv::DeserializeRecordsIter;
 use rusqlite::{Transaction, params};
 use text_block_macros::text_block;
 
-pub fn insert_signal(
-    tx: &mut Transaction<'_>,
-    signal: &CsvSignal,
-) -> anyhow::Result<usize> {
+pub fn insert_signal(tx: &mut Transaction<'_>, signal: &CsvSignal) -> anyhow::Result<usize> {
     let sql = text_block! {
         "INSERT INTO signal ("
         "   day_num, vehicle_id, trip_id, time_stamp, latitude, "

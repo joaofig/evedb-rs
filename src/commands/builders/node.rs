@@ -8,7 +8,6 @@ use indicatif::ProgressIterator;
 use url::Url;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
-use valhalla_client::status::Response;
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::{Error, Valhalla};
 
