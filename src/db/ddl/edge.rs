@@ -16,8 +16,7 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
         "h3_12_ini       INTEGER,"
         "h3_12_end       INTEGER,"
         "length_m        DOUBLE,"
-        "heading_deg     DOUBLE,"
-        "edge_hash       TEXT,"
+        "heading_deg     DOUBLE"
     ");" };
 
     conn.execute(sql, ())
