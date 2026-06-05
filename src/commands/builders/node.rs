@@ -1,10 +1,13 @@
 use crate::cli::Cli;
+use crate::db::dml::node::get_ring;
 use crate::db::evedb::EveDb;
 use crate::models::node::Node;
 use crate::models::trajectory::WayPoint;
 use crate::tools::lat_lng_to_h3_12;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use geo::Point;
 use indicatif::ProgressIterator;
+use std::cmp::Ordering;
 use url::Url;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
@@ -40,6 +43,28 @@ fn build_node(trajectory_id: i64, pt: &ShapePoint) -> Node {
         .altitude(0.0)
         .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
         .build()
+}
+
+pub fn find_node(db: &EveDb, pt: &ShapePoint) -> Option<Node> {
+    let index = lat_lng_to_h3_12(pt.lat, pt.lon);
+    let ring = crate::tools::get_ring(index, 1);
+    let point  = Point::new(pt.lon, pt.lat);
+
+    match get_ring(db, ring) {
+        Ok(nodes) => {
+            let nearest = nodes.iter()
+                .map(|n| (n, n.distance_to_point(&point)))
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+            if let Some((node, distance)) = nearest && distance <= 1.0 {
+                return Some(*node);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to get ring: {}", e);
+            return None;
+        }
+    }
+    None
 }
 
 fn create_tables(cli: &Cli, db: &EveDb) -> bool {
@@ -105,15 +130,13 @@ pub async fn build_nodes(cli: &Cli) {
     // Check if we can connect to Valhalla
     let valhalla_result = connect_to_valhalla(cli, &valhalla_url).await;
 
-    if let Err(e) = valhalla_result {
-        eprintln!(
-            "Valhalla instance at {} is unreachable or not responding correctly: {}. Please ensure Valhalla is running.",
-            valhalla_url, e
-        );
-        return;
-    }
-    // The server is there!
-    let valhalla = valhalla_result.unwrap();
+    let valhalla = match valhalla_result {
+        Ok(valhalla) => { valhalla }
+        Err(e) => {
+            eprintln!("Failed to connect to Valhalla: {}", e);
+            return;
+        }
+    };
 
     if !create_tables(cli, &db) {
         return;

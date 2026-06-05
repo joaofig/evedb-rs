@@ -1,8 +1,19 @@
+use h3o::CellIndex;
+
 pub fn lat_lng_to_h3_12(lat: f64, lng: f64) -> u64 {
     let coord = h3o::LatLng::new(lat, lng).unwrap();
     let cell = coord.to_cell(h3o::Resolution::Twelve);
     let index: u64 = cell.into();
     index
+}
+
+pub fn get_ring(h3: u64, k: u32) -> Vec<u64> {
+    CellIndex::try_from(h3)
+        .expect("invalid H3 index")
+        .grid_disk::<Vec<CellIndex>>(k)
+        .into_iter()
+        .map(u64::from)
+        .collect()
 }
 
 #[cfg(test)]
@@ -43,5 +54,13 @@ mod tests {
         // Use h3o::CellIndex if h3o::Cell doesn't exist
         let cell = h3o::CellIndex::try_from(h3_index).expect("Invalid H3 index");
         assert_eq!(cell.resolution(), h3o::Resolution::Twelve);
+    }
+
+    #[test]
+    fn test_get_ring() {
+        let h3_index = lat_lng_to_h3_12(38.7223, -9.1393);
+        let ring = get_ring(h3_index, 1);
+        assert_eq!(ring.len(), 7); // Center + 6 neighbors
+        assert!(ring.contains(&h3_index));
     }
 }

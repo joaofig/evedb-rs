@@ -68,22 +68,36 @@ pub fn build_trajectories(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
     if cli.verbose {
-        println!("Creating the trajectory table")
+        println!("Creating the trajectory tables and indexes")
     }
 
-    db.create_trajectory_table()
-        .expect("Failed to create trajectory table");
+    if let Err(e) = db.create_trajectory_table() {
+        eprintln!("Failed to create trajectory table: {}", e);
+        return;
+    }
+
+    if let Err(e) = db.create_trajectory_error_table() {
+        eprintln!("Failed to create trajectory error table: {}", e);
+        return;
+    }
 
     if cli.verbose {
         println!("Inserting trajectory records")
     }
-    db.insert_trajectories()
-        .expect("Failed to insert trajectory records");
+
+    match db.insert_trajectories() {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to insert trajectory records: {}", e);
+        }
+    }
 
     let updates = get_trajectory_updates(&db);
     if cli.verbose {
         println!("Updating {} trajectory records", updates.len())
     }
+
+    // Update the trajectories
     match db.update_trajectories(&updates) {
         Ok(_) => match db.create_trajectory_indexes() {
             Ok(_) => println!("Trajectory table updated successfully"),

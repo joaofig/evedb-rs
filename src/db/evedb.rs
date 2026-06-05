@@ -54,6 +54,10 @@ impl EveDb {
     pub fn create_trajectory_table(&self) -> Result<usize> {
         ddl::trajectory::create_table(self)
     }
+    
+    pub fn create_trajectory_error_table(&self) -> Result<usize> {
+        ddl::trajectory::create_error_table(self)
+    }
 
     pub fn insert_trajectories(&self) -> Result<usize> {
         dml::trajectory::insert_trajectories(self)

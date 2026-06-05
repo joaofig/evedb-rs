@@ -39,3 +39,31 @@ pub fn insert_nodes(db: &EveDb, nodes: impl Iterator<Item = Node>) -> anyhow::Re
     tx.commit()
         .map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
 }
+
+
+pub fn get_ring(db: &EveDb, ring: Vec<u64>) -> anyhow::Result<Vec<Node>> {
+    let conn = db.connect()?;
+    
+    // rusqlite doesn't implement ToSql for u64, so we cast to i64
+    let ring_i64: Vec<i64> = ring.into_iter().map(|x| x as i64).collect();
+    
+    let vars = vec!["?"; ring_i64.len()].join(", ");
+    let sql = format!(
+        "SELECT traj_id, latitude, longitude, altitude, h3_12 FROM node WHERE h3_12 IN ({});",
+        vars
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+    let nodes = stmt.query_map(rusqlite::params_from_iter(ring_i64), |row| {
+        Ok(Node {
+            id: row.get(0)?,
+            latitude: row.get(1)?,
+            longitude: row.get(2)?,
+            altitude: row.get(3)?,
+            h3_12: row.get(4)?,
+        })
+    })?
+    .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(nodes)
+}
