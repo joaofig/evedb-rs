@@ -8,10 +8,11 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     conn.execute("DROP TABLE IF EXISTS main.node;", ())?;
     let sql = text_block! {
     "CREATE TABLE IF NOT EXISTS node ("
-    "    node_id         INTEGER PRIMARY KEY,"
-    "    latitude        DOUBLE,"
-    "    longitude       DOUBLE,"
-    "    h3_12           INTEGER"
+        "node_id         INTEGER PRIMARY KEY,"
+        "latitude        DOUBLE,"
+        "longitude       DOUBLE,"
+        "altitude        DOUBLE,"
+        "h3_12           INTEGER"
     // "    match_error     TEXT"
     ");" };
 

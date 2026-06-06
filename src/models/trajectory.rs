@@ -22,3 +22,12 @@ pub struct WayPoint {
     pub latitude: f64,
     pub longitude: f64,
 }
+
+impl WayPoint {
+    pub fn to_shape_point(&self) -> valhalla_client::route::ShapePoint {
+        valhalla_client::route::ShapePoint {
+            lat: self.latitude,
+            lon: self.longitude,
+        }
+    }   
+}

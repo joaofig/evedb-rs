@@ -35,14 +35,19 @@ async fn map_match(
         .map_err(|e| anyhow!("Failed to map match: {:?}", e))
 }
 
-fn build_node(trajectory_id: i64, pt: &ShapePoint) -> Node {
-    Node::builder()
-        .id(trajectory_id)
-        .latitude(pt.lat)
-        .longitude(pt.lon)
-        .altitude(0.0)
-        .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
-        .build()
+fn build_node(db: &EveDb, pt: &ShapePoint) -> Node {
+    match find_node(db, pt) {
+        Some(node) => node,
+        None => {
+            Node::builder()
+                .id(0)
+                .latitude(pt.lat)
+                .longitude(pt.lon)
+                .altitude(0.0)
+                .h3_12(lat_lng_to_h3_12(pt.lat, pt.lon) as i64)
+                .build()
+        }
+    }
 }
 
 pub fn find_node(db: &EveDb, pt: &ShapePoint) -> Option<Node> {
@@ -89,6 +94,21 @@ fn create_tables(cli: &Cli, db: &EveDb) -> bool {
 
     if db.create_edge_indexes().is_err() {
         eprintln!("Failed to create edge indexes");
+        return false;
+    }
+
+    if db.create_traj_node_table().is_err() {
+        eprintln!("Failed to create traj_node table");
+        return false;
+    }
+
+    if db.create_taj_node_indexes().is_err() {
+        eprintln!("Failed to create taj_node indexes");
+        return false;
+    }
+
+    if db.create_trajectory_error_table().is_err() {
+        eprintln!("Failed to create trajectory_error table");
         return false;
     }
     true
@@ -154,33 +174,40 @@ pub async fn build_nodes(cli: &Cli) {
             match map_match(&valhalla, locations).await {
                 Ok(trip) => {
                     if let Some(warnings) = trip.warnings {
-                        let message = format!("{:?}", warnings);
-                        if db.insert_match_error(*trajectory_id, &message).is_err() {
-                            eprintln!("{}", message);
+                        let message = format!(
+                            "Map match for trajectory {} has warnings: {:?}",
+                            trajectory_id, warnings
+                        );
+                        eprintln!("{}", message);
+                        if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
+                            eprintln!("Failed to insert match error: {}", e);
                         }
                     } else {
                         let nodes = trip
                             .legs
                             .iter()
                             .flat_map(|leg| leg.shape.iter())
-                            .map(|pt| build_node(*trajectory_id, pt));
-                        if let Err(e) = db.insert_nodes(nodes) {
+                            .map(|pt| build_node(&db, pt));
+                        if let Err(e) = db.insert_nodes(*trajectory_id, nodes) {
                             let message = format!(
                                 "Failed to insert nodes for trajectory {}: {:?}",
                                 trajectory_id, e
                             );
+                            eprintln!("{}", message);
                             if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                                eprintln!("{}: {}", message, e);
+                                eprintln!("Failed to insert match error: {}", e);
                             }
                         }
                     }
                 }
                 Err(e) => {
                     let message =
-                        format!("Failed to map match trajectory {}: {:?}", trajectory_id, e);
+                        format!("Failed to map match trajectory {}: {:?}", trajectory_id, e.to_string());
+                    eprintln!("{}", message);
                     if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                        eprintln!("{}: {}", message, e);
+                        eprintln!("Failed to insert match error: {}", e);
                     }
+                    return;
                 }
             }
         } else {

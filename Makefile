@@ -8,15 +8,16 @@ docker-run:
 	docker run -dt --rm --name valhalla \
            	-p 8002:8002 \
            	-v ./valhalla/files:/custom_files \
-           	-e tile_urls=http://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
+           	-e tile_urls=https://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
            	-e serve_tiles=True \
-           	ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
+           	ghcr.io/valhalla/valhalla-scripted:latest
+#           	ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
 
 podman-run:
 	podman run -dt --rm --name valhalla \
            	-p 8002:8002 \
            	-v ./valhalla/files:/custom_files \
-           	-e tile_urls=http://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
+           	-e tile_urls=https://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \
            	-e serve_tiles=True \
            	ghcr.io/valhalla/valhalla-scripted:latest
            	# ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1

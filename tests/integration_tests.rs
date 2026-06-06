@@ -113,7 +113,7 @@ async fn test_full_build_command() {
 async fn test_match_command_with_mock_valhalla() {
     let mock_server = MockServer::start().await;
     unsafe {
-        std::env::set_var("VALHALLA_URL", &mock_server.uri());
+        std::env::set_var("VALHALLA_URL", mock_server.uri());
     }
 
     let tmp_dir = tempdir().unwrap();
@@ -134,21 +134,53 @@ async fn test_match_command_with_mock_valhalla() {
     // Mock Valhalla response
     let valhalla_response = json!({
         "trip": {
+            "status": 0,
+            "status_message": "OK",
+            "units": "kilometers",
+            "language": "en-US",
+            "locations": [
+                {"lat": 42.1, "lon": -83.1},
+                {"lat": 42.2, "lon": -83.2}
+            ],
             "legs": [
                 {
                     "maneuvers": [
                         {
+                            "type": 0,
                             "begin_shape_index": 0,
                             "end_shape_index": 1,
-                            "street_names": ["Test St"]
+                            "street_names": ["Test St"],
+                            "instruction": "Go straight",
+                            "time": 60,
+                            "length": 0.5,
+                            "travel_mode": "drive",
+                            "travel_type": "car"
                         }
                     ],
-                    "shape": "42.1,-83.1,42.2,-83.2"
+                    "shape": "_qqhoA~t_o}C_ibE~hbE",
+                    "summary": {
+                        "length": 0.5,
+                        "time": 60,
+                        "has_toll": false,
+                        "has_highway": false,
+                        "has_ferry": false,
+                        "min_lat": 42.1,
+                        "min_lon": -83.2,
+                        "max_lat": 42.2,
+                        "max_lon": -83.1
+                    }
                 }
             ],
             "summary": {
                 "length": 0.5,
-                "time": 60
+                "time": 60,
+                "has_toll": false,
+                "has_highway": false,
+                "has_ferry": false,
+                "min_lat": 42.1,
+                "min_lon": -83.2,
+                "max_lat": 42.2,
+                "max_lon": -83.1
             }
         }
     });

@@ -98,13 +98,21 @@ impl EveDb {
     pub fn create_edge_indexes(&self) -> Result<usize> {
         ddl::edge::create_indexes(self)
     }
+    
+    pub fn create_traj_node_table(&self) -> Result<usize> {
+        ddl::node::create_traj_node_table(self)
+    }
+    
+    pub fn create_taj_node_indexes(&self) -> Result<usize> {
+        ddl::node::create_traj_node_indexes(self)
+    }
 
     pub fn insert_match_error(&self, trajectory_id: i64, match_error: &str) -> Result<usize> {
         dml::node::insert_match_error(self, trajectory_id, match_error)
     }
 
-    pub fn insert_nodes(&self, nodes: impl Iterator<Item = Node>) -> Result<()> {
-        dml::node::insert_nodes(self, nodes)
+    pub fn insert_nodes(&self, traj_id: i64, nodes: impl Iterator<Item = Node>) -> Result<()> {
+        dml::node::insert_nodes(self, traj_id, nodes)
     }
 }
 
@@ -179,30 +187,36 @@ mod tests {
         let db = EveDb::new(db_path);
 
         db.create_node_table().unwrap();
+        db.create_trajectory_table().unwrap();
+        db.create_traj_node_table().unwrap();
+        db.create_trajectory_error_table().unwrap();
 
         let nodes = vec![
             Node::builder()
-                .id(1)
+                .id(0)
                 .latitude(40.0)
                 .longitude(-70.0)
                 .altitude(0.0)
                 .h3_12(12345)
                 .build(),
         ];
-        db.insert_nodes(nodes.into_iter()).unwrap();
-
-        db.create_trajectory_indexes().unwrap();
-
         let conn = db.connect().unwrap();
+        conn.execute(
+            "INSERT INTO trajectory (traj_id, vehicle_id, trip_id) VALUES (1, 1, 1)",
+            [],
+        )
+        .unwrap();
+
+        db.insert_nodes(1, nodes.into_iter()).unwrap();
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM node", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
 
-        db.insert_match_error(2, "Test error").unwrap();
+        db.insert_match_error(1, "Test error").unwrap();
         let error_count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM node WHERE match_error IS NOT NULL",
+                "SELECT COUNT(*) FROM trajectory_match_error",
                 [],
                 |r| r.get(0),
             )

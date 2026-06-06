@@ -1,5 +1,5 @@
 use bon::Builder;
-use geo::{HaversineDistance, Point};
+use geo::{Distance, Haversine, Point};
 use serde::{Deserialize, Serialize};
 
 #[derive(Builder, Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub struct Node {
 impl Node {
     pub fn distance_to_point(&self, point: &Point) -> f64 {
         let node_point = Point::new(self.longitude, self.latitude);
-        node_point.haversine_distance(point)
+        Haversine.distance(node_point, *point)
     }
 }
 

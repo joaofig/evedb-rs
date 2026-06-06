@@ -11,7 +11,7 @@ pub fn insert_match_error(
 ) -> anyhow::Result<usize> {
     let conn = db.connect()?;
     let sql = text_block! {
-        "INSERT INTO node "
+        "INSERT INTO trajectory_match_error "
         "    (traj_id, match_error) "
         "VALUES "
         "    (?1, ?2);"
@@ -20,26 +20,38 @@ pub fn insert_match_error(
         .map_err(|e| anyhow!("Failed to insert match error: {:?}", e))
 }
 
-pub fn insert_nodes(db: &EveDb, nodes: impl Iterator<Item = Node>) -> anyhow::Result<()> {
+pub fn insert_nodes(db: &EveDb, traj_id: i64,
+                    nodes: impl Iterator<Item = Node>) -> anyhow::Result<()> {
     let mut conn = db.connect()?;
 
     let sql = text_block! {
         "INSERT INTO node "
-        "    (traj_id, latitude, longitude, h3_12) "
+        "    (latitude, longitude, altitude, h3_12) "
         "VALUES "
-        "    (?1, ?2, ?3, ?4);"
+        "    (?1, ?2, ?3, ?4)"
+        " RETURNING node_id;"
     };
+    let sql_traj_node = "INSERT OR IGNORE INTO traj_node (traj_id, node_id) VALUES (?1, ?2);";
     let tx = conn.transaction()?;
     {
         let mut stmt = tx.prepare(sql)?;
+        let mut stmt_traj_node = tx.prepare(sql_traj_node)?;
         for node in nodes {
-            stmt.execute(params!(node.id, node.latitude, node.longitude, node.h3_12))?;
+            // Only insert new nodes in the table
+            let node_id = if node.id == 0 {
+                stmt.query_row(
+                    params!(node.latitude, node.longitude, node.altitude, node.h3_12),
+                    |row| row.get(0),
+                )?
+            } else {
+                node.id
+            };
+            stmt_traj_node.execute(params!(traj_id, node_id))?;
         }
     }
     tx.commit()
         .map_err(|e| anyhow!("Failed to insert nodes: {:?}", e))
 }
-
 
 pub fn get_ring(db: &EveDb, ring: Vec<u64>) -> anyhow::Result<Vec<Node>> {
     let conn = db.connect()?;
@@ -49,7 +61,7 @@ pub fn get_ring(db: &EveDb, ring: Vec<u64>) -> anyhow::Result<Vec<Node>> {
     
     let vars = vec!["?"; ring_i64.len()].join(", ");
     let sql = format!(
-        "SELECT traj_id, latitude, longitude, altitude, h3_12 FROM node WHERE h3_12 IN ({});",
+        "SELECT node_id, latitude, longitude, altitude, h3_12 FROM node WHERE h3_12 IN ({});",
         vars
     );
 
