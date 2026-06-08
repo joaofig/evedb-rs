@@ -98,13 +98,13 @@ pub fn get_trajectory_points(
 pub fn get_way_points(db: &EveDb, trajectory_id: i64) -> anyhow::Result<Vec<WayPoint>> {
     let conn = db.connect()?;
     let sql = text_block! {
-        "select     s.match_latitude as lat"
-        ",          s.match_longitude as lon"
+        "select     s.latitude as lat"
+        ",          s.longitude as lon"
         ",          min(s.time_stamp) / 1000 as time"
         "from       signal s"
         "inner join trajectory t on s.vehicle_id = t.vehicle_id and s.trip_id = t.trip_id"
         "where      t.traj_id = ?1"
-        "group by   s.match_latitude, s.match_longitude"
+        "group by   s.latitude, s.longitude"
         "order by   time;"
     };
     let mut stmt = conn.prepare(sql)?;

@@ -10,7 +10,7 @@ use indicatif::ProgressIterator;
 use std::cmp::Ordering;
 use url::Url;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
-use valhalla_client::route::{ShapePoint, Trip};
+use valhalla_client::route::{DirectionsType, ShapePoint, Trip};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::{Error, Valhalla};
 
@@ -20,13 +20,14 @@ async fn map_match(
 ) -> Result<Trip> {
     let trace_options = TraceOptions::builder()
         .search_radius(100.0)
-        .gps_accuracy(10.0);
+        .gps_accuracy(5.0);
     let manifest: Manifest = Manifest::builder()
         .shape_match(ShapeMatchType::MapSnap)
         .shape(locations)
         .use_timestamps(false)
         .verbose(true)
         .trace_options(trace_options)
+        .directions_type(DirectionsType::None)
         .costing(Costing::Auto(AutoCostingOptions::default()));
 
     valhalla
@@ -171,6 +172,10 @@ pub async fn build_nodes(cli: &Cli) {
         if let Ok(way_points) = db.get_way_points(*trajectory_id) {
             let locations = way_points.iter().map(|p: &WayPoint| p.into());
 
+            // for location in locations.clone() {
+            //     println!("{:?}", location);
+            // }
+
             match map_match(&valhalla, locations).await {
                 Ok(trip) => {
                     if let Some(warnings) = trip.warnings {
@@ -207,7 +212,7 @@ pub async fn build_nodes(cli: &Cli) {
                     if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
                         eprintln!("Failed to insert match error: {}", e);
                     }
-                    return;
+                    // return;
                 }
             }
         } else {
