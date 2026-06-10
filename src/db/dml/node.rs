@@ -21,7 +21,7 @@ pub fn insert_match_error(
 }
 
 pub fn insert_nodes(db: &EveDb, traj_id: i64,
-                    nodes: &Vec<Node>) -> anyhow::Result<()> {
+                    nodes: &mut Vec<Node>) -> anyhow::Result<()> {
     let mut conn = db.connect()?;
 
     let sql = text_block! {
@@ -46,6 +46,7 @@ pub fn insert_nodes(db: &EveDb, traj_id: i64,
             } else {
                 node.id
             };
+            node.id = node_id;
             stmt_traj_node.execute(params!(traj_id, node_id))?;
         }
     }

@@ -194,7 +194,7 @@ pub async fn build_nodes(cli: &Cli) {
                             eprintln!("Failed to insert match error: {}", e);
                         }
                     } else {
-                        let nodes: Vec<Node> = trip
+                        let mut nodes: Vec<Node> = trip
                             .legs
                             .iter()
                             .flat_map(|leg| leg.shape.iter())
@@ -202,7 +202,7 @@ pub async fn build_nodes(cli: &Cli) {
                             .collect();
 
                         // Insert the nodes into the database
-                        if let Err(e) = db.insert_nodes(*trajectory_id, &nodes) {
+                        if let Err(e) = db.insert_nodes(*trajectory_id, &mut nodes) {
                             let message = format!(
                                 "Failed to insert nodes for trajectory {}: {:?}",
                                 trajectory_id, e

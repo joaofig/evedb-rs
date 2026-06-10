@@ -1,19 +1,11 @@
 use crate::db::evedb::EveDb;
 use anyhow::anyhow;
-use text_block_macros::text_block;
 
 pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
 
     conn.execute("DROP TABLE IF EXISTS main.edge;", ())?;
-    let sql = text_block! {
-    "CREATE TABLE IF NOT EXISTS edge ("
-        "edge_id         INTEGER PRIMARY KEY,"
-        "node_ini        INTEGER,"
-        "node_end        INTEGER,"
-        "length_m        DOUBLE,"
-        "bearing_deg     DOUBLE"
-    ");" };
+    let sql = include_str!("sql/create_table_edge.sql");
 
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create edge table: {:?}", e))
@@ -22,7 +14,7 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
 pub fn create_indexes(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS edge_nodes_idx ON edge (node_ini, node_end);",
+        include_str!("sql/create_index_edge_nodes_idx.sql"),
         (),
     )
     .map_err(|e| anyhow!("Failed to create edge indexes: {:?}", e))
@@ -32,15 +24,7 @@ pub fn create_traj_edge_table(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
 
     conn.execute("DROP TABLE IF EXISTS traj_edge;", ())?;
-    let sql = text_block! {
-        "CREATE TABLE IF NOT EXISTS traj_edge ("
-        "    traj_edge_id   INTEGER PRIMARY KEY,"
-        "    traj_id        INTEGER NOT NULL,"
-        "    edge_id        INTEGER NOT NULL,"
-        "    FOREIGN KEY (traj_id) REFERENCES trajectory(traj_id),"
-        "    FOREIGN KEY (edge_id) REFERENCES edge(edge_id)"
-        ");"
-    };
+    let sql = include_str!("sql/create_table_traj_edge.sql");
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create trajectory edge table: {:?}", e))
 }

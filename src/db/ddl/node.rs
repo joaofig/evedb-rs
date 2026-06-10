@@ -34,15 +34,7 @@ pub fn create_traj_node_table(db: &EveDb) -> anyhow::Result<usize> {
 
     conn.execute("DROP TABLE IF EXISTS traj_node;", ())?;
 
-    let sql = text_block! {
-        "CREATE TABLE IF NOT EXISTS traj_node ("
-        "    traj_node_id   INTEGER PRIMARY KEY,"
-        "    traj_id        INTEGER NOT NULL,"
-        "    node_id        INTEGER NOT NULL,"
-        "    FOREIGN KEY (traj_id) REFERENCES trajectory(traj_id),"
-        "    FOREIGN KEY (node_id) REFERENCES node(node_id)"
-        ");"
-    };
+    let sql = include_str!("sql/create_table_traj_node.sql");
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create trajectory node table: {:?}", e))
 }

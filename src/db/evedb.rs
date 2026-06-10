@@ -119,7 +119,7 @@ impl EveDb {
         dml::node::insert_match_error(self, trajectory_id, match_error)
     }
 
-    pub fn insert_nodes(&self, traj_id: i64, nodes: &Vec<Node>) -> Result<()> {
+    pub fn insert_nodes(&self, traj_id: i64, nodes: &mut Vec<Node>) -> Result<()> {
         dml::node::insert_nodes(self, traj_id, nodes)
     }
     
@@ -203,7 +203,7 @@ mod tests {
         db.create_traj_node_table().unwrap();
         db.create_trajectory_error_table().unwrap();
 
-        let nodes = vec![
+        let mut nodes = vec![
             Node::builder()
                 .id(0)
                 .latitude(40.0)
@@ -219,7 +219,7 @@ mod tests {
         )
         .unwrap();
 
-        db.insert_nodes(1, &nodes).unwrap();
+        db.insert_nodes(1, &mut nodes).unwrap();
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM node", [], |r| r.get(0))
             .unwrap();

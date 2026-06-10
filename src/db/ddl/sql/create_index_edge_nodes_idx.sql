@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS edge_nodes_idx ON edge (node_ini, node_end);
