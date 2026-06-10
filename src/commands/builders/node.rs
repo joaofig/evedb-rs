@@ -108,6 +108,16 @@ fn create_tables(cli: &Cli, db: &EveDb) -> bool {
         return false;
     }
 
+    if db.create_traj_edge_table().is_err() {
+        eprintln!("Failed to create traj_edge table");
+        return false;
+    }
+
+    if db.create_taj_edge_indexes().is_err() {
+        eprintln!("Failed to create taj_edge indexes");
+        return false;
+    }
+
     if db.create_trajectory_error_table().is_err() {
         eprintln!("Failed to create trajectory_error table");
         return false;
@@ -172,10 +182,6 @@ pub async fn build_nodes(cli: &Cli) {
         if let Ok(way_points) = db.get_way_points(*trajectory_id) {
             let locations = way_points.iter().map(|p: &WayPoint| p.into());
 
-            // for location in locations.clone() {
-            //     println!("{:?}", location);
-            // }
-
             match map_match(&valhalla, locations).await {
                 Ok(trip) => {
                     if let Some(warnings) = trip.warnings {
@@ -188,12 +194,15 @@ pub async fn build_nodes(cli: &Cli) {
                             eprintln!("Failed to insert match error: {}", e);
                         }
                     } else {
-                        let nodes = trip
+                        let nodes: Vec<Node> = trip
                             .legs
                             .iter()
                             .flat_map(|leg| leg.shape.iter())
-                            .map(|pt| build_node(&db, pt));
-                        if let Err(e) = db.insert_nodes(*trajectory_id, nodes) {
+                            .map(|pt| build_node(&db, pt))
+                            .collect();
+
+                        // Insert the nodes into the database
+                        if let Err(e) = db.insert_nodes(*trajectory_id, &nodes) {
                             let message = format!(
                                 "Failed to insert nodes for trajectory {}: {:?}",
                                 trajectory_id, e
@@ -202,6 +211,15 @@ pub async fn build_nodes(cli: &Cli) {
                             if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
                                 eprintln!("Failed to insert match error: {}", e);
                             }
+                        }
+
+                        // Insert the edges into the database
+                        if let Err(e) = db.insert_edges(*trajectory_id, &nodes) {
+                            let message = format!(
+                                "Failed to insert edges for trajectory {}: {:?}",
+                                trajectory_id, e
+                            );
+                            eprintln!("{}", message);
                         }
                     }
                 }

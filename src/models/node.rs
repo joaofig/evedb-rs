@@ -1,5 +1,5 @@
 use bon::Builder;
-use geo::{Distance, Haversine, Point};
+use geo::{Bearing, Distance, Haversine, Point};
 use serde::{Deserialize, Serialize};
 
 #[derive(Builder, Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -15,6 +15,18 @@ impl Node {
     pub fn distance_to_point(&self, point: &Point) -> f64 {
         let node_point = Point::new(self.longitude, self.latitude);
         Haversine.distance(node_point, *point)
+    }
+    
+    pub fn distance_to(&self, other: &Node) -> f64 {
+        let node_point = Point::new(self.longitude, self.latitude);
+        let other_point = Point::new(other.longitude, other.latitude);
+        Haversine.distance(node_point, other_point)
+    }
+    
+    pub fn bearing_to(&self, other: &Node) -> f64 {
+        let node_point = Point::new(self.longitude, self.latitude);
+        let other_point = Point::new(other.longitude, other.latitude);
+        Haversine.bearing(node_point, other_point)
     }
 }
 

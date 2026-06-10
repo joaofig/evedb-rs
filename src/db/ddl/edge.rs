@@ -9,14 +9,10 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     let sql = text_block! {
     "CREATE TABLE IF NOT EXISTS edge ("
         "edge_id         INTEGER PRIMARY KEY,"
-        "lat_ini         DOUBLE,"
-        "lon_ini         DOUBLE,"
-        "lat_end         DOUBLE,"
-        "lon_end         DOUBLE,"
-        "h3_12_ini       INTEGER,"
-        "h3_12_end       INTEGER,"
+        "node_ini        INTEGER,"
+        "node_end        INTEGER,"
         "length_m        DOUBLE,"
-        "heading_deg     DOUBLE"
+        "bearing_deg     DOUBLE"
     ");" };
 
     conn.execute(sql, ())
@@ -26,7 +22,7 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
 pub fn create_indexes(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS edge_h3_idx ON edge (h3_12_ini, h3_12_end);",
+        "CREATE INDEX IF NOT EXISTS edge_nodes_idx ON edge (node_ini, node_end);",
         (),
     )
     .map_err(|e| anyhow!("Failed to create edge indexes: {:?}", e))

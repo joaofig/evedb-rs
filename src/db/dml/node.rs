@@ -21,7 +21,7 @@ pub fn insert_match_error(
 }
 
 pub fn insert_nodes(db: &EveDb, traj_id: i64,
-                    nodes: impl Iterator<Item = Node>) -> anyhow::Result<()> {
+                    nodes: &Vec<Node>) -> anyhow::Result<()> {
     let mut conn = db.connect()?;
 
     let sql = text_block! {

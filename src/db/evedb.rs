@@ -107,12 +107,24 @@ impl EveDb {
         ddl::node::create_traj_node_indexes(self)
     }
 
+    pub fn create_traj_edge_table(&self) -> Result<usize> {
+        ddl::edge::create_traj_edge_table(self)
+    }
+
+    pub fn create_taj_edge_indexes(&self) -> Result<usize> {
+        ddl::edge::create_traj_edge_indexes(self)
+    }
+
     pub fn insert_match_error(&self, trajectory_id: i64, match_error: &str) -> Result<usize> {
         dml::node::insert_match_error(self, trajectory_id, match_error)
     }
 
-    pub fn insert_nodes(&self, traj_id: i64, nodes: impl Iterator<Item = Node>) -> Result<()> {
+    pub fn insert_nodes(&self, traj_id: i64, nodes: &Vec<Node>) -> Result<()> {
         dml::node::insert_nodes(self, traj_id, nodes)
+    }
+    
+    pub fn insert_edges(&self, traj_id: i64, nodes: &[Node]) -> Result<()> {
+        dml::edge::insert_edges(self, traj_id, nodes)
     }
 }
 
@@ -207,7 +219,7 @@ mod tests {
         )
         .unwrap();
 
-        db.insert_nodes(1, nodes.into_iter()).unwrap();
+        db.insert_nodes(1, &nodes).unwrap();
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM node", [], |r| r.get(0))
             .unwrap();
