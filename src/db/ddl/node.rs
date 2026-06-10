@@ -6,16 +6,8 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
 
     conn.execute("DROP TABLE IF EXISTS main.node;", ())?;
-    let sql = text_block! {
-    "CREATE TABLE IF NOT EXISTS node ("
-        "node_id         INTEGER PRIMARY KEY,"
-        "latitude        DOUBLE,"
-        "longitude       DOUBLE,"
-        "altitude        DOUBLE,"
-        "h3_12           INTEGER"
-    // "    match_error     TEXT"
-    ");" };
 
+    let sql = include_str!("sql/create_table_node.sql");
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create node table: {:?}", e))
 }

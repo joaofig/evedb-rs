@@ -7,18 +7,7 @@ pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
 
     conn.execute("DROP TABLE IF EXISTS trajectory;", ())?;
 
-    let sql = text_block! {
-    "CREATE TABLE IF NOT EXISTS main.trajectory ("
-    "    traj_id     INTEGER PRIMARY KEY,"
-    "    vehicle_id  INTEGER NOT NULL,"
-    "    trip_id     INTEGER NOT NULL,"
-    "    length_m    DOUBLE,"
-    "    dt_ini      TEXT,"
-    "    dt_end      TEXT,"
-    "    duration_s  DOUBLE,"
-    "    h3_12_ini   INTEGER,"
-    "    h3_12_end   INTEGER"
-    ");" };
+    let sql = include_str!("sql/create_table_trajectory.sql");
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create trajectory table: {:?}", e))
 }
@@ -29,14 +18,8 @@ pub fn create_error_table(db: &EveDb) -> anyhow::Result<usize> {
         "DROP TABLE IF EXISTS trajectory_match_error;",
         (),
     )?;
-    let sql = text_block! {
-        "CREATE TABLE IF NOT EXISTS trajectory_match_error ("
-        "    id          INTEGER PRIMARY KEY,"
-        "    traj_id     INTEGER NOT NULL,"
-        "    match_error TEXT NOT NULL,"
-        "    FOREIGN KEY (traj_id) REFERENCES trajectory(traj_id)"
-        ");"
-    };
+
+    let sql = include_str!("sql/create_table_trajectory_match_error.sql");
     conn.execute(sql, ())
         .map_err(|e| anyhow!("Failed to create trajectory match error table: {:?}", e))
 }
