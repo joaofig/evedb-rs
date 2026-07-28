@@ -10,7 +10,7 @@ use indicatif::ProgressIterator;
 use std::cmp::Ordering;
 use url::Url;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
-use valhalla_client::route::{DirectionsType, ShapePoint, Trip};
+use valhalla_client::route::{ShapePoint, Trip};
 use valhalla_client::trace_route::{Manifest, ShapeMatchType, TraceOptions};
 use valhalla_client::{Error, Valhalla};
 
@@ -27,7 +27,7 @@ async fn map_match(
         .use_timestamps(false)
         .verbose(true)
         .trace_options(trace_options)
-        .directions_type(DirectionsType::None)
+        // .directions_type(DirectionsType::None)
         .costing(Costing::Auto(AutoCostingOptions::default()));
 
     valhalla

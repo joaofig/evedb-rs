@@ -1,6 +1,5 @@
 use crate::db::evedb::EveDb;
 use anyhow::anyhow;
-use text_block_macros::text_block;
 
 pub fn create_table(db: &EveDb) -> anyhow::Result<usize> {
     let conn = db.connect()?;
