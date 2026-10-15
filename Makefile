@@ -13,7 +13,7 @@ docker-run:
            	ghcr.io/nilsnolde/docker-valhalla/valhalla:3.5.1
 
 podman-run:
-	podman run -dt --rm --name valhalla \
+	podman run -dt --name valhalla \
            	-p 8002:8002 \
            	-v ./valhalla/files:/custom_files \
            	-e tile_urls=https://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf \

@@ -5,9 +5,11 @@ use crate::models::node::Node;
 use crate::models::trajectory::WayPoint;
 use crate::tools::lat_lng_to_h3_12;
 use anyhow::{anyhow, Result};
+use futures_util::FutureExt;
 use geo::Point;
 use indicatif::ProgressIterator;
 use std::cmp::Ordering;
+use std::panic::AssertUnwindSafe;
 use url::Url;
 use valhalla_client::costing::{AutoCostingOptions, Costing};
 use valhalla_client::route::{ShapePoint, Trip};
@@ -147,6 +149,69 @@ fn get_valhalla_url() -> Result<Url> {
     Url::parse(&url).map_err(|e| anyhow!("Invalid Valhalla URL '{}': {}", url, e))
 }
 
+async fn process_trajectory(
+    db: &EveDb,
+    valhalla: &Valhalla,
+    trajectory_id: i64,
+) -> Result<()> {
+    let way_points = db
+        .get_way_points(trajectory_id)
+        .map_err(|e| anyhow!("Failed to get way points for trajectory {}: {:?}", trajectory_id, e))?;
+    let locations = way_points.iter().map(|p: &WayPoint| p.into());
+
+    let trip = map_match(valhalla, locations)
+        .await
+        .map_err(|e| anyhow!("Failed to map match trajectory {}: {:?}", trajectory_id, e.to_string()))?;
+
+    if let Some(warnings) = trip.warnings {
+        let message = format!(
+            "Map match for trajectory {} has warnings: {:?}",
+            trajectory_id, warnings
+        );
+        eprintln!("{}", message);
+        if let Err(e) = db.insert_match_error(trajectory_id, &message) {
+            eprintln!("Failed to insert match error: {}", e);
+        }
+    } else {
+        let mut nodes: Vec<Node> = trip
+            .legs
+            .iter()
+            .flat_map(|leg| leg.shape.iter())
+            .map(|pt| build_node(db, pt))
+            .collect();
+
+        // Insert the nodes into the database
+        if let Err(e) = db.insert_nodes(trajectory_id, &mut nodes) {
+            let message = format!(
+                "Failed to insert nodes for trajectory {}: {:?}",
+                trajectory_id, e
+            );
+            eprintln!("{}", message);
+            if let Err(e) = db.insert_match_error(trajectory_id, &message) {
+                eprintln!("Failed to insert match error: {}", e);
+            }
+        }
+
+        // Insert the edges into the database
+        if let Err(e) = db.insert_edges(trajectory_id, &nodes) {
+            let message = format!(
+                "Failed to insert edges for trajectory {}: {:?}",
+                trajectory_id, e
+            );
+            eprintln!("{}", message);
+        }
+    }
+
+    Ok(())
+}
+
+fn record_trajectory_error(db: &EveDb, trajectory_id: i64, message: String) {
+    eprintln!("{}", message);
+    if let Err(e) = db.insert_match_error(trajectory_id, &message) {
+        eprintln!("Failed to insert match error: {}", e);
+    }
+}
+
 pub async fn build_nodes(cli: &Cli) {
     let db: EveDb = EveDb::new(&cli.db_path);
 
@@ -178,63 +243,39 @@ pub async fn build_nodes(cli: &Cli) {
     }
 
     let trajectory_ids = db.get_trajectory_ids().unwrap_or(vec![]);
+    let mut failed: u64 = 0;
+
     for trajectory_id in trajectory_ids.iter().progress() {
-        if let Ok(way_points) = db.get_way_points(*trajectory_id) {
-            let locations = way_points.iter().map(|p: &WayPoint| p.into());
+        let tid = *trajectory_id;
+        // Guard the entire per-trajectory pipeline so a bad record is logged,
+        // recorded in trajectory_match_error, and skipped without aborting the run.
+        let result = AssertUnwindSafe(process_trajectory(&db, &valhalla, tid))
+            .catch_unwind()
+            .await;
 
-            match map_match(&valhalla, locations).await {
-                Ok(trip) => {
-                    if let Some(warnings) = trip.warnings {
-                        let message = format!(
-                            "Map match for trajectory {} has warnings: {:?}",
-                            trajectory_id, warnings
-                        );
-                        eprintln!("{}", message);
-                        if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                            eprintln!("Failed to insert match error: {}", e);
-                        }
-                    } else {
-                        let mut nodes: Vec<Node> = trip
-                            .legs
-                            .iter()
-                            .flat_map(|leg| leg.shape.iter())
-                            .map(|pt| build_node(&db, pt))
-                            .collect();
-
-                        // Insert the nodes into the database
-                        if let Err(e) = db.insert_nodes(*trajectory_id, &mut nodes) {
-                            let message = format!(
-                                "Failed to insert nodes for trajectory {}: {:?}",
-                                trajectory_id, e
-                            );
-                            eprintln!("{}", message);
-                            if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                                eprintln!("Failed to insert match error: {}", e);
-                            }
-                        }
-
-                        // Insert the edges into the database
-                        if let Err(e) = db.insert_edges(*trajectory_id, &nodes) {
-                            let message = format!(
-                                "Failed to insert edges for trajectory {}: {:?}",
-                                trajectory_id, e
-                            );
-                            eprintln!("{}", message);
-                        }
-                    }
-                }
-                Err(e) => {
-                    let message =
-                        format!("Failed to map match trajectory {}: {:?}", trajectory_id, e.to_string());
-                    eprintln!("{}", message);
-                    if let Err(e) = db.insert_match_error(*trajectory_id, &message) {
-                        eprintln!("Failed to insert match error: {}", e);
-                    }
-                    // return;
-                }
+        match result {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                failed += 1;
+                record_trajectory_error(&db, tid, e.to_string());
             }
-        } else {
-            eprintln!("Failed to get way points for trajectory {}", trajectory_id);
+            Err(panic_payload) => {
+                failed += 1;
+                let panic_msg = panic_payload
+                    .downcast_ref::<&str>()
+                    .map(|s| s.to_string())
+                    .or_else(|| panic_payload.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_string());
+                record_trajectory_error(
+                    &db,
+                    tid,
+                    format!("Panicked while processing trajectory {}: {}", tid, panic_msg),
+                );
+            }
         }
+    }
+
+    if failed > 0 {
+        println!("Skipped {} trajectories due to errors", failed);
     }
 }

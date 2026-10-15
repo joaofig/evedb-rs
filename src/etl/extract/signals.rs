@@ -10,7 +10,10 @@ pub fn get_signal_filenames(cli: &Cli) -> Result<Vec<String>> {
     let filename = std::path::Path::new(&zip_path);
     let file = fs::File::open(filename)?;
     let archive = zip::ZipArchive::new(file)?;
-    let filenames: Vec<String> = archive.file_names().map(|f| f.to_string()).collect();
+    let filenames: Vec<String> = archive
+        .file_names()
+        .map(|f| f.map(|f| f.to_string()))
+        .collect::<Result<_, _>>()?;
     Ok(filenames)
 }
 
